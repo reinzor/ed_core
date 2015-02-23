@@ -121,9 +121,9 @@ void WorldUpdateServer::createNewDelta()
 
             for (std::vector<geo::TriangleI>::const_iterator it2 = mesh.getTriangleIs().begin();
                  it2 != mesh.getTriangleIs().end(); it2++) {
-                 new_info.mesh.vertices.push_back(it2->i1_);
-                 new_info.mesh.vertices.push_back(it2->i2_);
-                 new_info.mesh.vertices.push_back(it2->i3_);
+                 new_info.mesh.triangles.push_back(it2->i1_);
+                 new_info.mesh.triangles.push_back(it2->i2_);
+                 new_info.mesh.triangles.push_back(it2->i3_);
             }
 
         }
