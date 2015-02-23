@@ -15,11 +15,16 @@ bool WorldUpdateServer::GetWorldModel(ed::GetWorldModel::Request &req, ed::GetWo
 {
     res.number_revisions = 0;
 
+    ROS_INFO_STREAM("Queried revision " << req.rev_number
+                    << " , " << "Current rev number = "
+                    << current_rev_number << std::endl);
+
     if (current_rev_number >= req.rev_number) {
         for (int i = req.rev_number; i < current_rev_number; i ++) {
             res.world.push_back(this->deltaModels[i]);
             res.number_revisions++;
         }
+        return true;
     } else {
         return false;
     }
@@ -32,14 +37,19 @@ void WorldUpdateServer::configure(tue::Configuration config)
 
 void WorldUpdateServer::initialize()
 {
+    ros::NodeHandle nh;
+
     has_new_delta = false;
-    n.setCallbackQueue(&cb_queue_);
     current_rev_number = 0;
 
     ROS_INFO("Advetising new service");
-    if (!n.advertiseService("get_world_model", &WorldUpdateServer::GetWorldModel, this)) {
-        ROS_ERROR("Did not work");
-    }
+
+    ros::AdvertiseServiceOptions get_world_model =
+            ros::AdvertiseServiceOptions::create<ed::GetWorldModel>(
+                "/ed/get_world", boost::bind(&WorldUpdateServer::GetWorldModel, this, _1, _2),
+                ros::VoidPtr(), &cb_queue_);
+    srv_get_world_ = nh.advertiseService(get_world_model);
+
 }
 
 void WorldUpdateServer::updateRequestCallback(const ed::UpdateRequest &req)

@@ -47,8 +47,8 @@ private:
 
     std::vector<ed::WorldModelDelta> deltaModels;
     int current_rev_number;
-    ros::NodeHandle n;
     ros::CallbackQueue cb_queue_;
+    ros::ServiceServer srv_get_world_;
     bool has_new_delta;
 };
 
