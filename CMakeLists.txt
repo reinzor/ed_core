@@ -29,7 +29,13 @@ find_package(OpenCV REQUIRED)
 add_message_files(
    FILES
    EntityInfo.msg
-)
+   # Added by jsalmeron2 19/02/2015 -- 11:20
+   EntityUpdateInfo.msg
+   EntityCreateInfo.msg
+   Polygon.msg
+   Mesh.msg
+   WorldModelDelta.msg
+   )
 
 # Generate services in the 'srv' folder
 add_service_files(
@@ -45,11 +51,15 @@ add_service_files(
 
    # For builder plugin
    SetEntity.srv
+
+   # Added by jsalmeron2 19/02/2015 -- 15:05
+
+   GetWorldModel.srv
 )
 
 # Generate added messages and services with any dependencies listed here
 generate_messages(
-   DEPENDENCIES
+    DEPENDENCIES
    geometry_msgs
    tue_serialization
 )
@@ -172,6 +182,12 @@ add_dependencies(ed_occupancy_grid_publisher_plugin ${PROJECT_NAME}_gencpp)
 add_library(ed_hello_world_plugin plugins/hello_world_plugin.cpp)
 
 add_library(ed_tf_publisher_plugin plugins/tf_publisher_plugin.cpp)
+
+# Added by jsalmeron2 19/02/2015 -- 11:20
+add_library(world_update_server_plugin plugins/world_update_server_plugin.cpp)
+add_library(world_update_client_plugin plugins/world_update_client_plugin.cpp)
+add_dependencies(world_update_server_plugin ${PROJECT_NAME}_generate_messages_cpp ${PROJECT_NAME}_gencpp)
+add_dependencies(world_update_client_plugin ${PROJECT_NAME}_generate_messages_cpp ${PROJECT_NAME}_gencpp)
 
 find_package(kdl_parser REQUIRED)
 add_library(ed_robot_plugin plugins/robot_plugin.cpp)
