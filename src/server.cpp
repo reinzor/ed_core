@@ -412,6 +412,13 @@ void Server::initializeWorld()
 
     new_world_model->update(req);
 
+    // Temporarily for Javier
+    for(std::vector<PluginContainerPtr>::iterator it = plugin_containers_.begin(); it != plugin_containers_.end(); ++it)
+    {
+        PluginContainerPtr c = *it;
+        c->plugin()->updateRequestCallback(req);
+    }
+
     world_model_ = new_world_model;
 }
 
