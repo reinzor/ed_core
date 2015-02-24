@@ -14,18 +14,14 @@ WorldUpdateServer::~WorldUpdateServer()
 
 bool WorldUpdateServer::GetWorldModel(ed::GetWorldModel::Request &req, ed::GetWorldModel::Response &res)
 {
-    res.number_revisions = 0;
-    min_rev_number_stored = 0;
 
     ROS_INFO_STREAM("Queried revision " << req.rev_number
                     << " , " << "Current rev number = "
                     << current_rev_number << std::endl);
 
     if (current_rev_number >= req.rev_number) {
-        for (int i = req.rev_number; i < current_rev_number; i ++) {
-            res.world.push_back(this->deltaModels[i]);
-            res.number_revisions++;
-        }
+            res.world = combineDeltas(req.rev_number);
+            res.rev_number = current_rev_number;
         return true;
     } else {
         return false;
@@ -43,6 +39,7 @@ void WorldUpdateServer::initialize()
 
     has_new_delta = false;
     current_rev_number = 0;
+    min_rev_number_stored = 0;
 
     ROS_INFO("Advetising new service");
 

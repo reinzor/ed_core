@@ -35,10 +35,8 @@ void WorldUpdateClient::process(const ed::WorldModel &world, ed::UpdateRequest &
     srv.request.rev_number = this->current_rev_number;
 
     if (client.call(srv)) {
-        for (int i = 0; i < srv.response.number_revisions; i ++) {
-            updateWithDelta(srv.response.world[i], world, req);
-            this->current_rev_number++;
-        }
+            updateWithDelta(srv.response.world, world, req);
+            this->current_rev_number = srv.response.rev_number;
     } else {
         ROS_WARN("Cannot obtain world model updates from the server");
     }
@@ -72,6 +70,8 @@ void WorldUpdateClient::updateWithDelta(ed::WorldModelDelta& a,
                     pcl::PointXYZ p (it->polygon.xs[i], it->polygon.ys[i], 0);
                     ch.chull.points.push_back(p);
                 }
+
+                req.setConvexHull(it->id, ch);
             } else {
                 geo::Mesh m;
 

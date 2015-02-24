@@ -1,4 +1,4 @@
 uint32 rev_number
 ---
-uint32 number_revisions
-WorldModelDelta[] world
+uint32 rev_number
+WorldModelDelta world
