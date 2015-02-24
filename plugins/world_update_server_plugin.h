@@ -43,7 +43,7 @@ private:
 
     std::set<ed::UUID> modified_entities_current_delta;
     std::map<ed::UUID, geo::ShapeConstPtr> shapes_current_delta;
-    std::map<ed::UUID, geo::ShapeConstPtr> convex_hulls_current_delta;
+    std::map<ed::UUID, ed::ConvexHull2D> convex_hulls_current_delta;
     std::map<ed::UUID, std::string> types_current_delta;
     std::map<ed::UUID, geo::Pose3D> poses_current_delta;
     std::set<ed::UUID> removed_entities_current_delta;

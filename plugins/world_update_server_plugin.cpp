@@ -72,6 +72,13 @@ void WorldUpdateServer::updateRequestCallback(const ed::UpdateRequest &req)
         poses_current_delta[it->first.str()] = it->second;
     }
 
+
+    for ( std::map<ed::UUID, ed::ConvexHull2D>::const_iterator it = req.convex_hulls.begin();
+          it != req.convex_hulls.end(); it ++) {
+        modified_entities_current_delta.insert(it->first);
+        convex_hulls_current_delta[it->first.str()] = it->second;
+    }
+
     removed_entities_current_delta.insert(req.removed_entities.begin(), req.removed_entities.end());
     has_new_delta = true;
 
@@ -125,6 +132,25 @@ void WorldUpdateServer::createNewDelta()
                  new_info.mesh.triangles.push_back(it2->i3_);
             }
 
+        }
+
+        // Convex Hulls
+
+        if (convex_hulls_current_delta.find(it->str()) != convex_hulls_current_delta.end()) {
+
+            new_info.new_shape_or_convex = true;
+            new_info.is_convex_hull = true;
+
+            for (pcl::PointCloud<pcl::PointXYZ>::iterator it = convex_hulls_current_delta[it->str()].chull.begin();
+                 it != convex_hulls_current_delta[it->str()].chull.end(); it++) {
+
+                new_info.polygon.xs.push_back(it->x);
+                new_info.polygon.ys.push_back(it->y);
+
+            }
+
+            new_info.polygon.z_min = convex_hulls_current_delta[it->str()].min_z;
+            new_info.polygon.z_max = convex_hulls_current_delta[it->str()].max_z;
         }
 
         new_delta.update_entities.push_back(new_info);
