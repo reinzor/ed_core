@@ -37,6 +37,8 @@ public:
 
     void process(const ed::WorldModel& world, ed::UpdateRequest& req);
 
+    ed::WorldModelDelta combineDeltas(int rev_number);
+
 private:
 
     std::set<ed::UUID> modified_entities_current_delta;
@@ -50,6 +52,7 @@ private:
     ros::CallbackQueue cb_queue_;
     ros::ServiceServer srv_get_world_;
     bool has_new_delta;
+    int min_rev_number_stored;
 };
 
 #endif // WORLD_UPDATE_SERVER_PLUGIN_H

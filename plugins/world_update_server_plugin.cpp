@@ -3,6 +3,7 @@
 WorldUpdateServer::WorldUpdateServer()
 {
     current_rev_number = 0;
+    min_rev_number_stored = 0;
 }
 
 
@@ -14,6 +15,7 @@ WorldUpdateServer::~WorldUpdateServer()
 bool WorldUpdateServer::GetWorldModel(ed::GetWorldModel::Request &req, ed::GetWorldModel::Response &res)
 {
     res.number_revisions = 0;
+    min_rev_number_stored = 0;
 
     ROS_INFO_STREAM("Queried revision " << req.rev_number
                     << " , " << "Current rev number = "
@@ -58,19 +60,19 @@ void WorldUpdateServer::updateRequestCallback(const ed::UpdateRequest &req)
     for ( std::map<ed::UUID, geo::ShapeConstPtr>::const_iterator it = req.shapes.begin();
           it != req.shapes.end(); it ++) {
         modified_entities_current_delta.insert(it->first);
-        shapes_current_delta[it->first] = it->second;
+        shapes_current_delta[it->first.str()] = it->second;
     }
 
     for ( std::map<ed::UUID, std::string>::const_iterator it = req.types.begin();
           it != req.types.end(); it ++) {
         modified_entities_current_delta.insert(it->first);
-        types_current_delta[it->first] = it->second;
+        types_current_delta[it->first.str()] = it->second;
     }
 
     for ( std::map<ed::UUID, geo::Pose3D>::const_iterator it = req.poses.begin();
           it != req.poses.end(); it ++) {
         modified_entities_current_delta.insert(it->first);
-        poses_current_delta[it->first] = it->second;
+        poses_current_delta[it->first.str()] = it->second;
     }
 
     removed_entities_current_delta.insert(req.removed_entities.begin(), req.removed_entities.end());
@@ -92,25 +94,25 @@ void WorldUpdateServer::createNewDelta()
 
         // Pose
 
-        if (poses_current_delta.find(*it) != poses_current_delta.end()) {
+        if (poses_current_delta.find(it->str()) != poses_current_delta.end()) {
             new_info.new_pose = true;
-            geo::convert(poses_current_delta[*it], new_info.pose);
+            geo::convert(poses_current_delta[it->str()], new_info.pose);
         }
 
         // Type
 
-        if (types_current_delta.find(*it) != types_current_delta.end()) {
+        if (types_current_delta.find(it->str()) != types_current_delta.end()) {
             new_info.new_type = true;
-            new_info.type = types_current_delta[*it];
+            new_info.type = types_current_delta[it->str()];
         }
 
         // Shape
 
-        if (shapes_current_delta.find(*it) != shapes_current_delta.end()) {
+        if (shapes_current_delta.find(it->str()) != shapes_current_delta.end()) {
             new_info.new_shape_or_convex = true;
             new_info.is_convex_hull = false;
 
-            const geo::Mesh mesh = shapes_current_delta[*it]->getMesh();
+            const geo::Mesh mesh = shapes_current_delta[it->str()]->getMesh();
 
             for (std::vector<geo::Vector3>::const_iterator it2 = mesh.getPoints().begin();
                  it2 != mesh.getPoints().end(); it2++) {
@@ -151,6 +153,75 @@ void WorldUpdateServer::process(const ed::WorldModel &world, ed::UpdateRequest &
 
     this->cb_queue_.callAvailable();
 
+}
+
+ed::WorldModelDelta WorldUpdateServer::combineDeltas(int rev_number)
+{
+    ed::WorldModelDelta res_delta;
+    std::map<std::string, ed::EntityUpdateInfo> entity_update_res_delta;
+    std::set<std::string> removed_entities_res_delta;
+
+    // Merge information
+
+    if (rev_number >= this->min_rev_number_stored) {
+        for (int i = rev_number; i <= this->current_rev_number; i ++) {
+            for (std::vector<ed::EntityUpdateInfo>::const_iterator it = deltaModels[i - min_rev_number_stored].update_entities.begin();
+                 it != deltaModels[i - min_rev_number_stored].update_entities.end(); it++) {
+                    if (entity_update_res_delta.find(it->id) == entity_update_res_delta.end()) {
+                        entity_update_res_delta[it->id] = *it;
+                    } else {
+                        if (it->new_pose) {
+                            entity_update_res_delta[it->id].new_pose = true;
+                            entity_update_res_delta[it->id].pose = it->pose;
+                        }
+
+                        if (it->new_shape_or_convex) {
+                            entity_update_res_delta[it->id].new_shape_or_convex = true;
+                            entity_update_res_delta[it->id].is_convex_hull = it->is_convex_hull;
+                            entity_update_res_delta[it->id].center = it->center;
+                            entity_update_res_delta[it->id].polygon = it->polygon;
+                            entity_update_res_delta[it->id].mesh = it->mesh;
+                        }
+
+                        if (it->new_type) {
+                            entity_update_res_delta[it->id].type = it->type;
+                            entity_update_res_delta[it->id].new_type = it->new_type;
+                        }
+
+                        entity_update_res_delta[it->id].id = it->id;
+
+                    }
+              }
+
+            for (std::vector<std::string>::iterator it = deltaModels[i - min_rev_number_stored].remove_entities.begin();
+                 it != deltaModels[i - min_rev_number_stored].remove_entities.end(); it ++) {
+                std::map<std::string, ed::EntityUpdateInfo>::iterator pos = entity_update_res_delta.find(*it);
+
+                if (pos != entity_update_res_delta.end()) {
+                    entity_update_res_delta.erase(pos);
+                }
+
+                removed_entities_res_delta.insert(*it);
+            }
+        }
+    }
+
+    // Create final delta
+
+    res_delta.rev_number = this->current_rev_number;
+
+    for (std::map<std::string, ed::EntityUpdateInfo>::iterator it = entity_update_res_delta.begin();
+         it != entity_update_res_delta.end(); it ++) {
+        res_delta.update_entities.push_back(it->second);
+    }
+
+
+    for (std::set<std::string>::const_iterator it = removed_entities_res_delta.begin();
+         it != removed_entities_res_delta.end(); it ++) {
+        res_delta.remove_entities.push_back(*it);
+    }
+
+    return res_delta;
 }
 
 
