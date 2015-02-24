@@ -2,7 +2,7 @@
 
 WorldUpdateServer::WorldUpdateServer()
 {
-    current_rev_number = 0;
+    current_rev_number = -1;
     min_rev_number_stored = 0;
 }
 
@@ -38,7 +38,7 @@ void WorldUpdateServer::initialize()
     ros::NodeHandle nh;
 
     has_new_delta = false;
-    current_rev_number = 0;
+    current_rev_number = -1;
     min_rev_number_stored = 0;
 
     ROS_INFO("Advetising new service");
