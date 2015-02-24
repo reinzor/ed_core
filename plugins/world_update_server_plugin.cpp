@@ -2,7 +2,7 @@
 
 WorldUpdateServer::WorldUpdateServer()
 {
-    current_rev_number = -1;
+    current_rev_number = 0;
     min_rev_number_stored = 0;
 }
 
@@ -15,17 +15,20 @@ WorldUpdateServer::~WorldUpdateServer()
 bool WorldUpdateServer::GetWorldModel(ed::GetWorldModel::Request &req, ed::GetWorldModel::Response &res)
 {
 
+    bool success = true;
+
     ROS_INFO_STREAM("Queried revision " << req.rev_number
                     << " , " << "Current rev number = "
                     << current_rev_number << std::endl);
 
-    if (current_rev_number >= req.rev_number) {
-            res.world = combineDeltas(req.rev_number);
-            res.rev_number = current_rev_number;
-        return true;
-    } else {
-        return false;
+    if (req.rev_number < 0 || req.rev_number > current_rev_number) {
+        success = false;
+    } else if (current_rev_number > req.rev_number) {
+        res.world = combineDeltas(req.rev_number);
+        res.rev_number = current_rev_number;
     }
+
+    return success;
 }
 
 void WorldUpdateServer::configure(tue::Configuration config)
@@ -38,7 +41,7 @@ void WorldUpdateServer::initialize()
     ros::NodeHandle nh;
 
     has_new_delta = false;
-    current_rev_number = -1;
+    current_rev_number = 0;
     min_rev_number_stored = 0;
 
     ROS_INFO("Advetising new service");
@@ -183,13 +186,14 @@ ed::WorldModelDelta WorldUpdateServer::combineDeltas(int rev_number)
     ed::WorldModelDelta res_delta;
     std::map<std::string, ed::EntityUpdateInfo> entity_update_res_delta;
     std::set<std::string> removed_entities_res_delta;
+    int starting_delta = rev_number + 1;
 
     // Merge information
 
-    if (rev_number >= this->min_rev_number_stored) {
-        for (int i = rev_number; i <= this->current_rev_number; i ++) {
-            for (std::vector<ed::EntityUpdateInfo>::const_iterator it = deltaModels[i - min_rev_number_stored].update_entities.begin();
-                 it != deltaModels[i - min_rev_number_stored].update_entities.end(); it++) {
+    if (starting_delta >= this->min_rev_number_stored) {
+        for (int i = starting_delta; i <= this->current_rev_number; i ++) {
+            for (std::vector<ed::EntityUpdateInfo>::const_iterator it = deltaModels[i - min_rev_number_stored - 1].update_entities.begin();
+                 it != deltaModels[i - min_rev_number_stored - 1].update_entities.end(); it++) {
                     if (entity_update_res_delta.find(it->id) == entity_update_res_delta.end()) {
                         entity_update_res_delta[it->id] = *it;
                     } else {
@@ -216,8 +220,8 @@ ed::WorldModelDelta WorldUpdateServer::combineDeltas(int rev_number)
                     }
               }
 
-            for (std::vector<std::string>::iterator it = deltaModels[i - min_rev_number_stored].remove_entities.begin();
-                 it != deltaModels[i - min_rev_number_stored].remove_entities.end(); it ++) {
+            for (std::vector<std::string>::iterator it = deltaModels[i - min_rev_number_stored - 1].remove_entities.begin();
+                 it != deltaModels[i - min_rev_number_stored - 1].remove_entities.end(); it ++) {
                 std::map<std::string, ed::EntityUpdateInfo>::iterator pos = entity_update_res_delta.find(*it);
 
                 if (pos != entity_update_res_delta.end()) {
