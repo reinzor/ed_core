@@ -77,7 +77,7 @@ void entityToMsg(const ed::Entity& e, ed::EntityUpdateInfo& msg)
 WorldUpdateServer::WorldUpdateServer()
 {
     current_rev_number = 0;
-    min_rev_number_stored = 0;
+    i_delta_models_start_ = 0;
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -138,6 +138,7 @@ bool WorldUpdateServer::GetWorldModel(ed::GetWorldModel::Request &req, ed::GetWo
 
 void WorldUpdateServer::configure(tue::Configuration config)
 {
+    max_num_delta_models_ = 10;
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -148,7 +149,6 @@ void WorldUpdateServer::initialize()
 
     has_new_delta = false;
     current_rev_number = 0;
-    min_rev_number_stored = 0;
 
     ROS_INFO("Advetising new service");
 
@@ -240,20 +240,10 @@ void WorldUpdateServer::createNewDelta()
         // Convex Hulls
 
         if (convex_hulls_current_delta.find(it->str()) != convex_hulls_current_delta.end()) {
-
             new_info.new_shape_or_convex = true;
             new_info.is_convex_hull = true;
 
-            for (pcl::PointCloud<pcl::PointXYZ>::iterator it2 = convex_hulls_current_delta[it->str()].chull.begin();
-                 it2 != convex_hulls_current_delta[it->str()].chull.end(); it++) {
-
-                new_info.polygon.xs.push_back(it2->x);
-                new_info.polygon.ys.push_back(it2->y);
-
-            }
-
-            new_info.polygon.z_min = convex_hulls_current_delta[it->str()].min_z;
-            new_info.polygon.z_max = convex_hulls_current_delta[it->str()].max_z;
+            polygonToMsg(convex_hulls_current_delta[it->str()], new_info.polygon);
         }
 
         new_delta.update_entities.push_back(new_info);
@@ -275,7 +265,14 @@ void WorldUpdateServer::createNewDelta()
         entity_server_revisions_[entity_idx] = current_rev_number;
     }
 
-    deltaModels.push_back(new_delta);
+    if (deltaModels.size() < max_num_delta_models_)
+        deltaModels.push_back(new_delta);
+    else
+    {
+        deltaModels[i_delta_models_start_] = new_delta;
+        i_delta_models_start_ = (i_delta_models_start_ + 1) % max_num_delta_models_;
+    }
+
     has_new_delta = false;
     ROS_INFO("New Delta Created");
 
@@ -287,7 +284,7 @@ void WorldUpdateServer::process(const ed::WorldModel &world, ed::UpdateRequest &
 {
     world_ = &world;
 
-    if (has_new_delta) {
+    if (has_new_delta && max_num_delta_models_ > 0) {
         this->createNewDelta();
     }
 
@@ -301,50 +298,50 @@ ed::WorldModelDelta WorldUpdateServer::combineDeltas(int rev_number)
     ed::WorldModelDelta res_delta;
     std::map<std::string, ed::EntityUpdateInfo> entity_update_res_delta;
     std::set<std::string> removed_entities_res_delta;
-    int starting_delta = rev_number + 1;
 
     // Merge information
 
-    if (starting_delta >= this->min_rev_number_stored) {
-        for (int i = starting_delta; i <= this->current_rev_number; i ++) {
-            for (std::vector<ed::EntityUpdateInfo>::const_iterator it = deltaModels[i - min_rev_number_stored - 1].update_entities.begin();
-                 it != deltaModels[i - min_rev_number_stored - 1].update_entities.end(); it++) {
-                    if (entity_update_res_delta.find(it->id) == entity_update_res_delta.end()) {
-                        entity_update_res_delta[it->id] = *it;
-                    } else {
-                        if (it->new_pose) {
-                            entity_update_res_delta[it->id].new_pose = true;
-                            entity_update_res_delta[it->id].pose = it->pose;
-                        }
+    for (int i = rev_number; i < this->current_rev_number; i++)
+    {
+        const ed::WorldModelDelta& delta = deltaModels[(i + deltaModels.size() + i_delta_models_start_ - current_rev_number) % max_num_delta_models_];
 
-                        if (it->new_shape_or_convex) {
-                            entity_update_res_delta[it->id].new_shape_or_convex = true;
-                            entity_update_res_delta[it->id].is_convex_hull = it->is_convex_hull;
-                            entity_update_res_delta[it->id].center = it->center;
-                            entity_update_res_delta[it->id].polygon = it->polygon;
-                            entity_update_res_delta[it->id].mesh = it->mesh;
-                        }
-
-                        if (it->new_type) {
-                            entity_update_res_delta[it->id].type = it->type;
-                            entity_update_res_delta[it->id].new_type = it->new_type;
-                        }
-
-                        entity_update_res_delta[it->id].id = it->id;
-
-                    }
-              }
-
-            for (std::vector<std::string>::iterator it = deltaModels[i - min_rev_number_stored - 1].remove_entities.begin();
-                 it != deltaModels[i - min_rev_number_stored - 1].remove_entities.end(); it ++) {
-                std::map<std::string, ed::EntityUpdateInfo>::iterator pos = entity_update_res_delta.find(*it);
-
-                if (pos != entity_update_res_delta.end()) {
-                    entity_update_res_delta.erase(pos);
+        for (std::vector<ed::EntityUpdateInfo>::const_iterator it = delta.update_entities.begin(); it != delta.update_entities.end(); it++)
+        {
+            if (entity_update_res_delta.find(it->id) == entity_update_res_delta.end()) {
+                entity_update_res_delta[it->id] = *it;
+            } else {
+                if (it->new_pose) {
+                    entity_update_res_delta[it->id].new_pose = true;
+                    entity_update_res_delta[it->id].pose = it->pose;
                 }
 
-                removed_entities_res_delta.insert(*it);
+                if (it->new_shape_or_convex) {
+                    entity_update_res_delta[it->id].new_shape_or_convex = true;
+                    entity_update_res_delta[it->id].is_convex_hull = it->is_convex_hull;
+                    entity_update_res_delta[it->id].center = it->center;
+                    entity_update_res_delta[it->id].polygon = it->polygon;
+                    entity_update_res_delta[it->id].mesh = it->mesh;
+                }
+
+                if (it->new_type) {
+                    entity_update_res_delta[it->id].type = it->type;
+                    entity_update_res_delta[it->id].new_type = it->new_type;
+                }
+
+                entity_update_res_delta[it->id].id = it->id;
             }
+        }
+
+        for (std::vector<std::string>::const_iterator it = delta.remove_entities.begin();
+             it != delta.remove_entities.end(); it ++)
+        {
+            std::map<std::string, ed::EntityUpdateInfo>::iterator pos = entity_update_res_delta.find(*it);
+
+            if (pos != entity_update_res_delta.end()) {
+                entity_update_res_delta.erase(pos);
+            }
+
+            removed_entities_res_delta.insert(*it);
         }
     }
 

@@ -48,12 +48,18 @@ private:
     std::map<ed::UUID, geo::Pose3D> poses_current_delta;
     std::set<ed::UUID> removed_entities_current_delta;
 
+    // delta_models_ is a circular buffer containing world model updates
+    // i_delta_models_start_ stores the index to the *earliest* delta in the buffer
+    unsigned int i_delta_models_start_;
     std::vector<ed::WorldModelDelta> deltaModels;
+
+    // Maximum delta model buffer size
+    unsigned int max_num_delta_models_;
+
     int current_rev_number;
     ros::CallbackQueue cb_queue_;
     ros::ServiceServer srv_get_world_;
     bool has_new_delta;
-    int min_rev_number_stored;
 
     const ed::WorldModel* world_;
 
