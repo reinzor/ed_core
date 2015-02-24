@@ -41,17 +41,30 @@ public:
 
 private:
 
-    std::set<ed::UUID> modified_entities_current_delta;
-    std::map<ed::UUID, geo::ShapeConstPtr> shapes_current_delta;
-    std::map<ed::UUID, ed::ConvexHull2D> convex_hulls_current_delta;
-    std::map<ed::UUID, std::string> types_current_delta;
-    std::map<ed::UUID, geo::Pose3D> poses_current_delta;
-    std::set<ed::UUID> removed_entities_current_delta;
+//    std::set<ed::UUID> modified_entities_current_delta;
+//    std::map<ed::UUID, geo::ShapeConstPtr> shapes_current_delta;
+//    std::map<ed::UUID, ed::ConvexHull2D> convex_hulls_current_delta;
+//    std::map<ed::UUID, std::string> types_current_delta;
+//    std::map<ed::UUID, geo::Pose3D> poses_current_delta;
+//    std::set<ed::UUID> removed_entities_current_delta;
 
-    // delta_models_ is a circular buffer containing world model updates
+    // Contains the delta from the latest revision to the current world model state
+    // (which is not yet added to deltaModels). A double buffer is used because the
+    // delta is filled by a different thread than it is used.
+    ed::UpdateRequest latest_delta_[2];
+    bool has_new_delta[2];
+
+    // Index in the double buffer
+    int i_latest_delta_;
+
+    // Signals whether the delta is currently being read (and therefore should not be writter to)
+    bool using_delta_;
+
+    // deltaModels is a circular buffer containing world model updates
+    std::vector<ed::WorldModelDelta> deltaModels;
+
     // i_delta_models_start_ stores the index to the *earliest* delta in the buffer
     unsigned int i_delta_models_start_;
-    std::vector<ed::WorldModelDelta> deltaModels;
 
     // Maximum delta model buffer size
     unsigned int max_num_delta_models_;
@@ -59,14 +72,16 @@ private:
     int current_rev_number;
     ros::CallbackQueue cb_queue_;
     ros::ServiceServer srv_get_world_;
-    bool has_new_delta;
 
+    // Pointer to the latest world model state
     const ed::WorldModel* world_;
 
     // Keeps track of the latest world revision in which an entity was changed.
     // For example, if index 10 has value 5, it means that the entity with index 10
     // was last changed in revision 5.
     std::vector<unsigned int> entity_server_revisions_;
+
+    ed::EntityUpdateInfo& addOrGetEntityUpdate(const ed::UUID& id, std::map<std::string, unsigned int>& ids, ed::WorldModelDelta& delta);
 };
 
 #endif // WORLD_UPDATE_SERVER_PLUGIN_H

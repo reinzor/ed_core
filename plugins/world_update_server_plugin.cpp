@@ -78,6 +78,11 @@ WorldUpdateServer::WorldUpdateServer()
 {
     current_rev_number = 0;
     i_delta_models_start_ = 0;
+    i_latest_delta_ = 0;
+
+    using_delta_ = false;
+
+    max_num_delta_models_ = 10;
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -138,7 +143,6 @@ bool WorldUpdateServer::GetWorldModel(ed::GetWorldModel::Request &req, ed::GetWo
 
 void WorldUpdateServer::configure(tue::Configuration config)
 {
-    max_num_delta_models_ = 10;
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -147,7 +151,9 @@ void WorldUpdateServer::initialize()
 {
     ros::NodeHandle nh;
 
-    has_new_delta = false;
+    has_new_delta[0] = false;
+    has_new_delta[1] = false;
+
     current_rev_number = 0;
 
     ROS_INFO("Advetising new service");
@@ -163,34 +169,63 @@ void WorldUpdateServer::initialize()
 
 void WorldUpdateServer::updateRequestCallback(const ed::UpdateRequest &req)
 {
+    // This function is called from another thread than all the other functions. Therefore, we need
+    // a double buffer system for the delta update
 
-    for ( std::map<ed::UUID, geo::ShapeConstPtr>::const_iterator it = req.shapes.begin();
-          it != req.shapes.end(); it ++) {
-        modified_entities_current_delta.insert(it->first);
-        shapes_current_delta[it->first.str()] = it->second;
+    if (using_delta_)
+    {
+        // The other thread is currently using the latest delta, so switch to a new one
+        i_latest_delta_ = 1 - i_latest_delta_;
+
+        // Make sure the delta is empty
+        latest_delta_[i_latest_delta_] = ed::UpdateRequest();
     }
 
-    for ( std::map<ed::UUID, std::string>::const_iterator it = req.types.begin();
-          it != req.types.end(); it ++) {
-        modified_entities_current_delta.insert(it->first);
-        types_current_delta[it->first.str()] = it->second;
-    }
+    ed::UpdateRequest& delta = latest_delta_[i_latest_delta_];
 
-    for ( std::map<ed::UUID, geo::Pose3D>::const_iterator it = req.poses.begin();
-          it != req.poses.end(); it ++) {
-        modified_entities_current_delta.insert(it->first);
-        poses_current_delta[it->first.str()] = it->second;
-    }
+    // Notify that the delta is not ready
+    has_new_delta[i_latest_delta_] = false;
 
+    delta.shapes.insert(req.shapes.begin(), req.shapes.end());
+    delta.types.insert(req.types.begin(), req.types.end());
+    delta.poses.insert(req.poses.begin(), req.poses.end());
+    delta.convex_hulls.insert(req.convex_hulls.begin(), req.convex_hulls.end());
+    delta.removed_entities.insert(req.removed_entities.begin(), req.removed_entities.end());
 
-    for ( std::map<ed::UUID, ed::ConvexHull2D>::const_iterator it = req.convex_hulls.begin();
-          it != req.convex_hulls.end(); it ++) {
-        modified_entities_current_delta.insert(it->first);
-        convex_hulls_current_delta[it->first.str()] = it->second;
-    }
+    // Notify that the delta is ready
+    has_new_delta[i_latest_delta_] = true;
+}
 
-    removed_entities_current_delta.insert(req.removed_entities.begin(), req.removed_entities.end());
-    has_new_delta = true;
+// ----------------------------------------------------------------------------------------------------
+
+ed::EntityUpdateInfo& WorldUpdateServer::addOrGetEntityUpdate(
+        const ed::UUID& id, std::map<std::string, unsigned int>& ids, ed::WorldModelDelta& delta)
+{
+    std::map<std::string, unsigned int>::const_iterator it = ids.find(id.str());
+    if (it != ids.end())
+        return delta.update_entities[it->second];
+
+    // Remember the entity index for next time
+    ids[id.str()] = delta.update_entities.size();
+
+    // Add a fresh new entity update
+    delta.update_entities.push_back(ed::EntityUpdateInfo());
+
+    // Get a reference to the new entity update
+    ed::EntityUpdateInfo& new_info = delta.update_entities.back();
+
+    // Set id
+    new_info.id = id.str();
+
+    // Find entity index
+    world_->findEntityIdx(new_info.id, new_info.index);
+
+    // Update entity server revision list
+    for(unsigned int i = entity_server_revisions_.size(); i < new_info.index + 1; ++i)
+        entity_server_revisions_.push_back(0);
+    entity_server_revisions_[new_info.index] = current_rev_number;
+
+    return new_info;
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -200,58 +235,47 @@ void WorldUpdateServer::createNewDelta()
     current_rev_number++;
 
     ed::WorldModelDelta new_delta;
+    std::map<std::string, unsigned int> updated_ids;
 
-    for (std::set<ed::UUID>::const_iterator it = modified_entities_current_delta.begin();
-         it != modified_entities_current_delta.end(); it++) {
-        ed::EntityUpdateInfo new_info;
+    using_delta_ = true;
+    ed::UpdateRequest& delta = latest_delta_[i_latest_delta_];
 
-        new_info.id = it->str();
-
-        // Find entity index
-        world_->findEntityIdx(new_info.id, new_info.index);
-
-        // Update entity server revision list
-        for(unsigned int i = entity_server_revisions_.size(); i < new_info.index + 1; ++i)
-            entity_server_revisions_.push_back(0);
-        entity_server_revisions_[new_info.index] = current_rev_number;
-
-        // Pose
-
-        if (poses_current_delta.find(it->str()) != poses_current_delta.end()) {
-            new_info.new_pose = true;
-            geo::convert(poses_current_delta[it->str()], new_info.pose);
-        }
-
-        // Type
-
-        if (types_current_delta.find(it->str()) != types_current_delta.end()) {
-            new_info.new_type = true;
-            new_info.type = types_current_delta[it->str()];
-        }
-
-        // Shape
-
-        if (shapes_current_delta.find(it->str()) != shapes_current_delta.end()) {
-            new_info.new_shape_or_convex = true;
-            new_info.is_convex_hull = false;            
-            shapeToMsg(*shapes_current_delta[it->str()], new_info.mesh);
-        }
-
-        // Convex Hulls
-
-        if (convex_hulls_current_delta.find(it->str()) != convex_hulls_current_delta.end()) {
-            new_info.new_shape_or_convex = true;
-            new_info.is_convex_hull = true;
-
-            polygonToMsg(convex_hulls_current_delta[it->str()], new_info.polygon);
-        }
-
-        new_delta.update_entities.push_back(new_info);
-
+    // Types
+    for (std::map<ed::UUID, std::string>::const_iterator it = delta.types.begin(); it != delta.types.end(); it ++)
+    {
+        ed::EntityUpdateInfo& info = addOrGetEntityUpdate(it->first, updated_ids, new_delta);
+        info.new_type = true;
+        info.type = it->second;
     }
 
-    for (std::set<ed::UUID>::iterator it = removed_entities_current_delta.begin();
-         it != removed_entities_current_delta.end(); it++)
+    // Poses
+    for (std::map<ed::UUID, geo::Pose3D>::const_iterator it = delta.poses.begin(); it != delta.poses.end(); it ++)
+    {
+        ed::EntityUpdateInfo& info = addOrGetEntityUpdate(it->first, updated_ids, new_delta);
+        info.new_pose = true;
+        geo::convert(it->second, info.pose);
+    }
+
+    // Shapes
+    for (std::map<ed::UUID, geo::ShapeConstPtr>::const_iterator it = delta.shapes.begin(); it != delta.shapes.end(); it ++)
+    {
+        ed::EntityUpdateInfo& info = addOrGetEntityUpdate(it->first, updated_ids, new_delta);
+        info.new_shape_or_convex = true;
+        info.is_convex_hull = false;
+        shapeToMsg(*it->second, info.mesh);
+    }
+
+    // Convex hulls
+    for (std::map<ed::UUID, ed::ConvexHull2D>::const_iterator it = delta.convex_hulls.begin(); it != delta.convex_hulls.end(); it ++)
+    {
+        ed::EntityUpdateInfo& info = addOrGetEntityUpdate(it->first, updated_ids, new_delta);
+        info.new_shape_or_convex = true;
+        info.is_convex_hull = true;
+        polygonToMsg(it->second, info.polygon);
+    }
+
+    // Removed entities
+    for (std::set<ed::UUID>::iterator it = delta.removed_entities.begin(); it != delta.removed_entities.end(); it++)
     {
         new_delta.remove_entities.push_back(it->str());
 
@@ -265,17 +289,23 @@ void WorldUpdateServer::createNewDelta()
         entity_server_revisions_[entity_idx] = current_rev_number;
     }
 
+    using_delta_ = false;
+
     if (deltaModels.size() < max_num_delta_models_)
+    {
+        // If we have not yet reached the max number of delta models, simply push the delta
         deltaModels.push_back(new_delta);
+    }
     else
     {
+        // Otherwise, calculate the new index (deltaModels is a circular buffer)
         deltaModels[i_delta_models_start_] = new_delta;
         i_delta_models_start_ = (i_delta_models_start_ + 1) % max_num_delta_models_;
     }
 
-    has_new_delta = false;
-    ROS_INFO("New Delta Created");
+    has_new_delta[i_latest_delta_] = false;
 
+    ROS_INFO("New Delta Created");
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -284,7 +314,7 @@ void WorldUpdateServer::process(const ed::WorldModel &world, ed::UpdateRequest &
 {
     world_ = &world;
 
-    if (has_new_delta && max_num_delta_models_ > 0) {
+    if (has_new_delta[i_latest_delta_] && max_num_delta_models_ > 0) {
         this->createNewDelta();
     }
 
