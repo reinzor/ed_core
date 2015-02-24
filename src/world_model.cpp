@@ -290,6 +290,9 @@ EntityPtr WorldModel::getOrAddEntity(const UUID& id, std::map<UUID, EntityPtr>& 
         // Set the copy
         entities_[idx] = e;
 
+        // Update revision number
+        ++entity_revisions_[idx];
+
         new_entities[id] = e;
     }
     else
@@ -328,6 +331,7 @@ void WorldModel::addNewEntity(const EntityConstPtr& e)
         Idx idx = entities_.size();
         entity_map_[e->id()] = idx;
         entities_.push_back(e);
+        entity_revisions_.push_back(1);
     }
     else
     {
@@ -335,6 +339,7 @@ void WorldModel::addNewEntity(const EntityConstPtr& e)
         entity_empty_spots_.pop();
         entity_map_[e->id()] = idx;
         entities_[idx] = e;
+        ++entity_revisions_[idx];
     }
 }
 

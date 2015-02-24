@@ -1,40 +1,146 @@
 #include "world_update_server_plugin.h"
 
+#include <ed/entity.h>
+
+// ----------------------------------------------------------------------------------------------------
+
+void shapeToMsg(const geo::Shape& shape, ed::Mesh& msg)
+{
+    const geo::Mesh& mesh = shape.getMesh();
+
+    for (std::vector<geo::Vector3>::const_iterator it2 = mesh.getPoints().begin();
+         it2 != mesh.getPoints().end(); it2++)
+    {
+         msg.vertices.push_back(it2->getX());
+         msg.vertices.push_back(it2->getY());
+         msg.vertices.push_back(it2->getZ());
+    }
+
+    for (std::vector<geo::TriangleI>::const_iterator it2 = mesh.getTriangleIs().begin();
+         it2 != mesh.getTriangleIs().end(); it2++)
+    {
+         msg.triangles.push_back(it2->i1_);
+         msg.triangles.push_back(it2->i2_);
+         msg.triangles.push_back(it2->i3_);
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------
+
+void polygonToMsg(const ed::ConvexHull2D& ch, ed::Polygon& msg)
+{
+    msg.z_min = ch.min_z;
+    msg.z_max = ch.max_z;
+
+    msg.xs.resize(ch.chull.size());
+    msg.ys.resize(ch.chull.size());
+
+    for(unsigned int i = 0; i <  ch.chull.size(); ++i)
+    {
+        msg.xs[i] = ch.chull[i].x;
+        msg.ys[i] = ch.chull[i].y;
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------
+
+void entityToMsg(const ed::Entity& e, ed::EntityUpdateInfo& msg)
+{
+    // id
+    msg.id = e.id().str();
+
+    // type
+    msg.type = e.type();
+    msg.new_type = true;
+
+    // pose
+    geo::convert(e.pose(), msg.pose);
+    msg.new_pose = true;
+
+    // shape
+    if (e.shape())
+    {
+        // Mesh
+        shapeToMsg(*e.shape(), msg.mesh);
+        msg.new_shape_or_convex = true;
+    }
+    else if (!e.convexHull().chull.empty())
+    {
+        // Polygon
+        polygonToMsg(e.convexHull(), msg.polygon);
+        msg.new_shape_or_convex = true;
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------
+
 WorldUpdateServer::WorldUpdateServer()
 {
     current_rev_number = 0;
     min_rev_number_stored = 0;
 }
 
+// ----------------------------------------------------------------------------------------------------
 
 WorldUpdateServer::~WorldUpdateServer()
 {
-
 }
+
+// ----------------------------------------------------------------------------------------------------
 
 bool WorldUpdateServer::GetWorldModel(ed::GetWorldModel::Request &req, ed::GetWorldModel::Response &res)
 {
-
-    bool success = true;
-
     ROS_INFO_STREAM("Queried revision " << req.rev_number
                     << " , " << "Current rev number = "
                     << current_rev_number << std::endl);
 
-    if (req.rev_number < 0 || req.rev_number > current_rev_number) {
-        success = false;
-    } else if (current_rev_number > req.rev_number) {
-        res.world = combineDeltas(req.rev_number);
+    if (req.rev_number > current_rev_number)
+    {
+        std::stringstream ss;
+        ss << "Requested revision is in the future: client asks revision '" << req.rev_number << "' but current revision is '" << current_rev_number << "'.";
+        res.error = ss.str();
+    }
+    else if (current_rev_number > req.rev_number)
+    {
+        if (req.rev_number + deltaModels.size() < current_rev_number)
+        {
+            // The revision is too old for the number of deltas stored. Therefore, send full entity info, but only
+            // for the entities that changed since the requested revision number
+
+            ROS_INFO_STREAM("Requested revision too old for sending small delta revision; will send full entity info instead.");
+
+            for(unsigned int i = 0; i < world_->entities().size(); ++i)
+            {
+                const ed::EntityConstPtr& e = world_->entities()[i];
+                if (req.rev_number < entity_server_revisions_[i])
+                {
+                    res.world.update_entities.push_back(ed::EntityUpdateInfo());
+                    ed::EntityUpdateInfo& info = res.world.update_entities.back();
+                    info.index = i;
+
+                    if (e)
+                        entityToMsg(*e, info);
+                }
+            }
+        }
+        else
+        {
+            res.world = combineDeltas(req.rev_number);
+        }
+
         res.rev_number = current_rev_number;
     }
 
-    return success;
+    return true;
 }
+
+// ----------------------------------------------------------------------------------------------------
 
 void WorldUpdateServer::configure(tue::Configuration config)
 {
-
 }
+
+// ----------------------------------------------------------------------------------------------------
 
 void WorldUpdateServer::initialize()
 {
@@ -51,8 +157,9 @@ void WorldUpdateServer::initialize()
                 "/ed/get_world", boost::bind(&WorldUpdateServer::GetWorldModel, this, _1, _2),
                 ros::VoidPtr(), &cb_queue_);
     srv_get_world_ = nh.advertiseService(get_world_model);
-
 }
+
+// ----------------------------------------------------------------------------------------------------
 
 void WorldUpdateServer::updateRequestCallback(const ed::UpdateRequest &req)
 {
@@ -84,8 +191,9 @@ void WorldUpdateServer::updateRequestCallback(const ed::UpdateRequest &req)
 
     removed_entities_current_delta.insert(req.removed_entities.begin(), req.removed_entities.end());
     has_new_delta = true;
-
 }
+
+// ----------------------------------------------------------------------------------------------------
 
 void WorldUpdateServer::createNewDelta()
 {
@@ -98,6 +206,14 @@ void WorldUpdateServer::createNewDelta()
         ed::EntityUpdateInfo new_info;
 
         new_info.id = it->str();
+
+        // Find entity index
+        world_->findEntityIdx(new_info.id, new_info.index);
+
+        // Update entity server revision list
+        for(unsigned int i = entity_server_revisions_.size(); i < new_info.index + 1; ++i)
+            entity_server_revisions_.push_back(0);
+        entity_server_revisions_[new_info.index] = current_rev_number;
 
         // Pose
 
@@ -117,24 +233,8 @@ void WorldUpdateServer::createNewDelta()
 
         if (shapes_current_delta.find(it->str()) != shapes_current_delta.end()) {
             new_info.new_shape_or_convex = true;
-            new_info.is_convex_hull = false;
-
-            const geo::Mesh mesh = shapes_current_delta[it->str()]->getMesh();
-
-            for (std::vector<geo::Vector3>::const_iterator it2 = mesh.getPoints().begin();
-                 it2 != mesh.getPoints().end(); it2++) {
-                 new_info.mesh.vertices.push_back(it2->getX());
-                 new_info.mesh.vertices.push_back(it2->getY());
-                 new_info.mesh.vertices.push_back(it2->getZ());
-            }
-
-            for (std::vector<geo::TriangleI>::const_iterator it2 = mesh.getTriangleIs().begin();
-                 it2 != mesh.getTriangleIs().end(); it2++) {
-                 new_info.mesh.triangles.push_back(it2->i1_);
-                 new_info.mesh.triangles.push_back(it2->i2_);
-                 new_info.mesh.triangles.push_back(it2->i3_);
-            }
-
+            new_info.is_convex_hull = false;            
+            shapeToMsg(*shapes_current_delta[it->str()], new_info.mesh);
         }
 
         // Convex Hulls
@@ -161,8 +261,18 @@ void WorldUpdateServer::createNewDelta()
     }
 
     for (std::set<ed::UUID>::iterator it = removed_entities_current_delta.begin();
-         it != removed_entities_current_delta.end(); it++) {
+         it != removed_entities_current_delta.end(); it++)
+    {
         new_delta.remove_entities.push_back(it->str());
+
+        // Find entity index
+        unsigned int entity_idx;
+        world_->findEntityIdx(*it, entity_idx);
+
+        // Update entity server revision list
+        for(unsigned int i = entity_server_revisions_.size(); i < entity_idx + 1; ++i)
+            entity_server_revisions_.push_back(0);
+        entity_server_revisions_[entity_idx] = current_rev_number;
     }
 
     deltaModels.push_back(new_delta);
@@ -171,15 +281,20 @@ void WorldUpdateServer::createNewDelta()
 
 }
 
+// ----------------------------------------------------------------------------------------------------
+
 void WorldUpdateServer::process(const ed::WorldModel &world, ed::UpdateRequest &req)
 {
+    world_ = &world;
+
     if (has_new_delta) {
         this->createNewDelta();
     }
 
     this->cb_queue_.callAvailable();
-
 }
+
+// ----------------------------------------------------------------------------------------------------
 
 ed::WorldModelDelta WorldUpdateServer::combineDeltas(int rev_number)
 {
@@ -250,7 +365,5 @@ ed::WorldModelDelta WorldUpdateServer::combineDeltas(int rev_number)
 
     return res_delta;
 }
-
-
 
 ED_REGISTER_PLUGIN(WorldUpdateServer)

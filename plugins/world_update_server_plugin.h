@@ -54,6 +54,13 @@ private:
     ros::ServiceServer srv_get_world_;
     bool has_new_delta;
     int min_rev_number_stored;
+
+    const ed::WorldModel* world_;
+
+    // Keeps track of the latest world revision in which an entity was changed.
+    // For example, if index 10 has value 5, it means that the entity with index 10
+    // was last changed in revision 5.
+    std::vector<unsigned int> entity_server_revisions_;
 };
 
 #endif // WORLD_UPDATE_SERVER_PLUGIN_H

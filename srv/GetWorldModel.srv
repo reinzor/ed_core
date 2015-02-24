@@ -1,14 +1,11 @@
-# Query option 1): get all deltas since a certain revision number 
+# Client revision number
 uint32 rev_number
-
-# Query option 2): send all entity revisions and receive an update
-uint32[] entity_revisions
 ---
+# World mode update (delta)
 WorldModelDelta world
 
-# If this is true when using option 1), it means the revision number is
-# too old (the server does not have the corresponding deltas anymore).
-# In this case, try again using option 2)
-bool rev_number_too_old
-
+# New revision number
 uint32 rev_number
+
+# Error message. Is empty if no errors occurred
+string error
