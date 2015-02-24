@@ -141,11 +141,11 @@ void WorldUpdateServer::createNewDelta()
             new_info.new_shape_or_convex = true;
             new_info.is_convex_hull = true;
 
-            for (pcl::PointCloud<pcl::PointXYZ>::iterator it = convex_hulls_current_delta[it->str()].chull.begin();
-                 it != convex_hulls_current_delta[it->str()].chull.end(); it++) {
+            for (pcl::PointCloud<pcl::PointXYZ>::iterator it2 = convex_hulls_current_delta[it->str()].chull.begin();
+                 it2 != convex_hulls_current_delta[it->str()].chull.end(); it++) {
 
-                new_info.polygon.xs.push_back(it->x);
-                new_info.polygon.ys.push_back(it->y);
+                new_info.polygon.xs.push_back(it2->x);
+                new_info.polygon.ys.push_back(it2->y);
 
             }
 
