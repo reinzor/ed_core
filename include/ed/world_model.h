@@ -56,8 +56,6 @@ public:
 
     inline const_iterator end() const { return const_iterator(entities_.end()); }
 
-    void setEntity(const UUID& id, const EntityConstPtr& e);
-
     void removeEntity(const UUID& id);
 
     EntityConstPtr getEntity(const ed::UUID& id) const
@@ -99,7 +97,7 @@ private:
 
     EntityPtr getOrAddEntity(const UUID& id, std::map<UUID, EntityPtr>& new_entities);
 
-    void addNewEntity(const EntityConstPtr& e);
+    EntityPtr addNewEntity(const UUID& id);
 
 
 };

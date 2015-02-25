@@ -132,9 +132,10 @@ bool WorldUpdateServer::GetWorldModel(ed::GetWorldModel::Request &req, ed::GetWo
         {
             res.world = combineDeltas(req.rev_number);
         }
-
-        res.rev_number = current_rev_number;
     }
+
+    if (res.error.empty())
+        res.rev_number = current_rev_number;
 
     return true;
 }
@@ -342,71 +343,78 @@ void WorldUpdateServer::process(const ed::WorldModel &world, ed::UpdateRequest &
 ed::WorldModelDelta WorldUpdateServer::combineDeltas(int rev_number)
 {
     ed::WorldModelDelta res_delta;
-    std::map<std::string, ed::EntityUpdateInfo> entity_update_res_delta;
+
+    // maps entity ids to index in the delta
+    std::map<std::string, unsigned int> res_delta_indices;
+
     std::set<std::string> removed_entities_res_delta;
 
-    // Merge information
-
-    for (int i = rev_number; i < this->current_rev_number; i++)
+    // Merge information starting with the latest delta
+    for (int i = this->current_rev_number - 1; i >= rev_number; i--)
     {
         const ed::WorldModelDelta& delta = deltaModels[(i + deltaModels.size() + i_delta_models_start_ - current_rev_number) % max_num_delta_models_];
 
         for (std::vector<ed::EntityUpdateInfo>::const_iterator it = delta.update_entities.begin(); it != delta.update_entities.end(); it++)
         {
-            if (entity_update_res_delta.find(it->id) == entity_update_res_delta.end()) {
-                entity_update_res_delta[it->id] = *it;
-            } else {
-                if (it->new_pose) {
-                    entity_update_res_delta[it->id].new_pose = true;
-                    entity_update_res_delta[it->id].pose = it->pose;
+            if (removed_entities_res_delta.find(it->id) != removed_entities_res_delta.end())
+                // Entity was removed in later delta, so skip
+                continue;
+
+            std::map<std::string, unsigned int>::iterator it_idx = res_delta_indices.find(it->id);
+
+            if (it_idx == res_delta_indices.end())
+            {
+                res_delta_indices[it->id] = res_delta.update_entities.size();
+                res_delta.update_entities.push_back(*it);
+            }
+            else
+            {
+                ed::EntityUpdateInfo& info = res_delta.update_entities[it_idx->second];
+
+                if (!info.new_pose && it->new_pose)
+                {
+                    info.new_pose = true;
+                    info.pose = it->pose;
                 }
 
-                if (it->new_shape_or_convex) {
-                    entity_update_res_delta[it->id].new_shape_or_convex = true;
-                    entity_update_res_delta[it->id].is_convex_hull = it->is_convex_hull;
-                    entity_update_res_delta[it->id].center = it->center;
-                    entity_update_res_delta[it->id].polygon = it->polygon;
-                    entity_update_res_delta[it->id].mesh = it->mesh;
+                if (!info.new_shape_or_convex && it->new_shape_or_convex)
+                {
+                    info.new_shape_or_convex = true;
+                    info.is_convex_hull = it->is_convex_hull;
+                    info.center = it->center;
+                    info.polygon = it->polygon;
+                    info.mesh = it->mesh;
                 }
 
-                if (it->new_type) {
-                    entity_update_res_delta[it->id].type = it->type;
-                    entity_update_res_delta[it->id].new_type = it->new_type;
+                if (!info.new_type && it->new_type)
+                {
+                    info.type = it->type;
+                    info.new_type = it->new_type;
                 }
 
-                entity_update_res_delta[it->id].id = it->id;
+                info.id = it->id;
             }
         }
 
-        for (std::vector<std::string>::const_iterator it = delta.remove_entities.begin();
-             it != delta.remove_entities.end(); it ++)
+        // Add removed entities to removed entities list
+        for (std::vector<std::string>::const_iterator it = delta.remove_entities.begin(); it != delta.remove_entities.end(); it ++)
         {
-            std::map<std::string, ed::EntityUpdateInfo>::iterator pos = entity_update_res_delta.find(*it);
-
-            if (pos != entity_update_res_delta.end()) {
-                entity_update_res_delta.erase(pos);
-            }
-
             removed_entities_res_delta.insert(*it);
         }
     }
 
-    // Create final delta
-
-    res_delta.rev_number = this->current_rev_number;
-
-    for (std::map<std::string, ed::EntityUpdateInfo>::iterator it = entity_update_res_delta.begin();
-         it != entity_update_res_delta.end(); it ++) {
-        res_delta.update_entities.push_back(it->second);
-    }
-
-
+    // Add removed entities to list
     for (std::set<std::string>::const_iterator it = removed_entities_res_delta.begin();
          it != removed_entities_res_delta.end(); it ++) {
         res_delta.remove_entities.push_back(*it);
     }
 
+    // Set revision number
+    res_delta.rev_number = this->current_rev_number;
+
     return res_delta;
 }
+
+// ----------------------------------------------------------------------------------------------------
 
 ED_REGISTER_PLUGIN(WorldUpdateServer)

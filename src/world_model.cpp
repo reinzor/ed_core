@@ -83,21 +83,16 @@ void WorldModel::update(const UpdateRequest& req)
     {
         EntityPtr e = getOrAddEntity(it->first, new_entities);
 
-            EntityPtr e_updated(new Entity(*e));
+        tue::config::DataPointer params;
+        params.add(e->data());
+        params.add(it->second);
 
-            tue::config::DataPointer params;
-            params.add(e->data());
-            params.add(it->second);
+        tue::config::Reader r(params);
+        std::string type;
+        if (r.value("type", type, tue::config::OPTIONAL))
+            e->setType(type);
 
-            tue::config::Reader r(params);
-            std::string type;
-            if (r.value("type", type, tue::config::OPTIONAL))
-                e_updated->setType(type);
-
-            e_updated->setData(params);
-
-            setEntity(it->first, e_updated);
-
+        e->setData(params);
     }
 
     // Remove entities
@@ -244,21 +239,6 @@ Idx WorldModel::addRelation(const RelationConstPtr& r)
 
 // --------------------------------------------------------------------------------
 
-void WorldModel::setEntity(const UUID& id, const EntityConstPtr& e)
-{
-    std::map<UUID, Idx>::const_iterator it_idx = entity_map_.find(id);
-    if (it_idx == entity_map_.end())
-    {
-        addNewEntity(e);
-    }
-    else
-    {
-        entities_[it_idx->second] = e;
-    }
-}
-
-// --------------------------------------------------------------------------------
-
 void WorldModel::removeEntity(const UUID& id)
 {
     std::map<UUID, Idx>::iterator it_idx = entity_map_.find(id);
@@ -298,8 +278,7 @@ EntityPtr WorldModel::getOrAddEntity(const UUID& id, std::map<UUID, EntityPtr>& 
     else
     {
         // Does not yet exist
-        e = boost::make_shared<Entity>(id);
-        addNewEntity(e);
+        e = addNewEntity(id);
     }
 
     return e;
@@ -324,23 +303,38 @@ bool WorldModel::findEntityIdx(const UUID& id, Idx& idx) const
 
 // --------------------------------------------------------------------------------
 
-void WorldModel::addNewEntity(const EntityConstPtr& e)
+EntityPtr WorldModel::addNewEntity(const UUID& id)
 {
+    EntityPtr e;
+    ed::UUID id_with_idx(id);
+
     if (entity_empty_spots_.empty())
     {
-        Idx idx = entities_.size();
-        entity_map_[e->id()] = idx;
+        // Determine index
+        id_with_idx.idx = entities_.size();
+
+        // Create entity
+        e = boost::make_shared<Entity>(id_with_idx);
+
+        entity_map_[e->id()] = id_with_idx.idx;
         entities_.push_back(e);
         entity_revisions_.push_back(1);
     }
     else
     {
-        Idx idx = entity_empty_spots_.front();
+        // Determine index
+        id_with_idx.idx = entity_empty_spots_.front();
         entity_empty_spots_.pop();
-        entity_map_[e->id()] = idx;
-        entities_[idx] = e;
-        ++entity_revisions_[idx];
+
+        // Create entity
+        e = boost::make_shared<Entity>(id_with_idx);
+
+        entity_map_[e->id()] = id_with_idx.idx;
+        entities_[id_with_idx.idx] = e;
+        ++entity_revisions_[id_with_idx.idx];
     }
+
+    return e;
 }
 
 // --------------------------------------------------------------------------------
