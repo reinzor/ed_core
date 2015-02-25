@@ -132,9 +132,10 @@ bool WorldUpdateServer::GetWorldModel(ed::GetWorldModel::Request &req, ed::GetWo
         {
             res.world = combineDeltas(req.rev_number);
         }
-
-        res.rev_number = current_rev_number;
     }
+
+    if (res.error.empty())
+        res.rev_number = current_rev_number;
 
     return true;
 }
