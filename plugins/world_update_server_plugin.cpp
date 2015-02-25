@@ -186,10 +186,26 @@ void WorldUpdateServer::updateRequestCallback(const ed::UpdateRequest &req)
     // Notify that the delta is not ready
     has_new_delta[i_latest_delta_] = false;
 
-    delta.shapes.insert(req.shapes.begin(), req.shapes.end());
-    delta.types.insert(req.types.begin(), req.types.end());
-    delta.poses.insert(req.poses.begin(), req.poses.end());
-    delta.convex_hulls.insert(req.convex_hulls.begin(), req.convex_hulls.end());
+    for (std::map<ed::UUID, geo::ShapeConstPtr>::const_iterator it = req.shapes.begin();
+         it != req.shapes.end(); it ++) {
+        delta.shapes[it->first] = it->second;
+    }
+
+    for (std::map<ed::UUID, std::string>::const_iterator it = req.types.begin();
+         it != req.types.end(); it ++) {
+        delta.types[it->first] = it->second;
+    }
+
+    for (std::map<ed::UUID, geo::Pose3D>::const_iterator it = req.poses.begin();
+         it != req.poses.end(); it ++) {
+        delta.poses[it->first] = it->second;
+    }
+
+    for (std::map<ed::UUID, ed::ConvexHull2D>::const_iterator it = req.convex_hulls.begin();
+         it != req.convex_hulls.end(); it ++) {
+        delta.convex_hulls[it->first] = it->second;
+    }
+
     delta.removed_entities.insert(req.removed_entities.begin(), req.removed_entities.end());
 
     // Notify that the delta is ready
