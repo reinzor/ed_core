@@ -303,7 +303,7 @@ void Server::update()
     // Look if we can merge some not updates entities
     {
         tue::ScopedTimer t(profiler_, "merge entities");
-        mergeEntities(new_world_model, 5.0, 0.5);
+        mergeEntities(*new_world_model, 5.0, 0.5);
     }
 
     // Notify all plugins of the updated world model
@@ -443,13 +443,14 @@ void Server::storeEntityMeasurements(const std::string& path) const
 
 // ----------------------------------------------------------------------------------------------------
 
-void Server::mergeEntities(const WorldModelPtr& world_model, double not_updated_time, double overlap_fraction)
+void Server::mergeEntities(WorldModel& world, double not_updated_time, double overlap_fraction)
 {
-    std::vector<UUID> ids_to_be_removed;
-    std::vector<UUID> merge_target_ids;
+    std::set<UUID> merge_target_ids;
+
+    UpdateRequest req;
 
     // Iter over all entities and check if the current_time - last_update_time > not_updated_time
-    for (WorldModel::const_iterator it = world_model->begin(); it != world_model->end(); ++it)
+    for (WorldModel::const_iterator it = world.begin(); it != world.end(); ++it)
     {
         const EntityConstPtr& e = *it;
 
@@ -459,13 +460,13 @@ void Server::mergeEntities(const WorldModelPtr& world_model, double not_updated_
         if (!e->lastMeasurement())
             continue;
 
-        if (e->shape() || std::find(merge_target_ids.begin(), merge_target_ids.end(), e->id()) != merge_target_ids.end() )
+        if (e->shape() || merge_target_ids.find(e->id()) != merge_target_ids.end() )
             continue;
 
         if ( ros::Time::now().toSec() - e->lastMeasurement()->timestamp() > not_updated_time )
         {
             // Try to merge with other polygons (except for itself)
-            for (WorldModel::const_iterator e_it = world_model->begin(); e_it != world_model->end(); ++e_it)
+            for (WorldModel::const_iterator e_it = world.begin(); e_it != world.end(); ++e_it)
             {
                 const EntityConstPtr& e_target = *e_it;
                 const UUID& id2 = e_target->id();
@@ -487,36 +488,29 @@ void Server::mergeEntities(const WorldModelPtr& world_model, double not_updated_
                                                                      e->convexHull(),
                                                                      overlap_factor);
 
-                if (collision && overlap_factor > 0.5) { //! TODO: NEEDS REVISION
-                    ids_to_be_removed.push_back(e->id());
+                if (collision && overlap_factor > 0.5)
+                { //! TODO: NEEDS REVISION
+                    req.removeEntity(e->id());
+
                     ConvexHull2D convex_hull_target = e_target->convexHull();
                     helpers::ddp::add2DConvexHull(e->convexHull(), convex_hull_target);
 
-                    // Create a copy of the entity
-                    EntityPtr e_target_updated(new Entity(*e_target));
-
                     // Update the convex hull
-                    e_target_updated->setConvexHull(convex_hull_target);
+                    req.setConvexHull(e_target->id(), convex_hull_target);
 
                     // Update the best measurement
                     MeasurementConstPtr best_measurement = e->bestMeasurement();
                     if (best_measurement)
-                        e_target_updated->addMeasurement(best_measurement);
+                        req.addMeasurement(e_target->id(), best_measurement);
 
-                    // Set updated entity
-                    world_model->setEntity(e_target->id(), e_target_updated);
-
-                    merge_target_ids.push_back(e_target->id());
+                    merge_target_ids.insert(e_target->id());
                     break;
                 }
             }
         }
     }
 
-    for (std::vector<UUID>::const_iterator it = ids_to_be_removed.begin(); it != ids_to_be_removed.end(); ++it)
-    {
-        world_model->removeEntity(*it);
-    }    
+    world.update(req);
 }
 
 

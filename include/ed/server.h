@@ -87,7 +87,7 @@ private:
     bool visualize_;
 
     //! Merge the entities!
-    void mergeEntities(const WorldModelPtr& world_model, double not_updated_time, double overlap_fraction);
+    void mergeEntities(WorldModel& world, double not_updated_time, double overlap_fraction);
 
     std::string getFullLibraryPath(const std::string& lib);
 };
