@@ -4,8 +4,6 @@
 #include <string>
 #include <vector>
 
-//#include "ed/io/data.h"
-
 #include <ostream>
 
 namespace ed

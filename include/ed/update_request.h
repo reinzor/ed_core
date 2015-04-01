@@ -13,8 +13,6 @@
 #include <vector>
 #include <geolib/datatypes.h>
 
-#include <ed/convex_hull_2d.h>
-
 namespace ed
 {
 
@@ -25,33 +23,10 @@ public:
 
     UpdateRequest() {}
 
-    // MEASUREMENTS
-
-    std::map<UUID, std::vector<MeasurementConstPtr> > measurements;
-    void addMeasurement(const UUID& id, const MeasurementConstPtr& m) { measurements[id].push_back(m); flagUpdated(id); }
-
-    void addMeasurements(const UUID& id, const std::vector<MeasurementConstPtr>& measurements_)
-    {
-        if (measurements_.empty())
-            return;
-
-        std::vector<MeasurementConstPtr>& v = measurements[id];
-        v.insert(v.end(), measurements_.begin(), measurements_.end());
-
-        flagUpdated(id);
-    }
-
-
     // SHAPES
 
     std::map<UUID, geo::ShapeConstPtr> shapes;
     void setShape(const UUID& id, const geo::ShapeConstPtr& shape) { shapes[id] = shape; flagUpdated(id); }
-
-
-    // CONVEX HULLS
-
-    std::map<UUID, ed::ConvexHull2D> convex_hulls;
-    void setConvexHull(const UUID& id, const ed::ConvexHull2D& convex_hull) { convex_hulls[id] = convex_hull; flagUpdated(id); }
 
     // TYPES
 

@@ -2,10 +2,10 @@
 #define entity_h_
 
 #include "ed/types.h"
-#include "ed/convex_hull_2d.h"
 #include "ed/uuid.h"
 
 #include <tue/config/data.h>
+#include <geolib/datatypes.h>
 
 #include <boost/circular_buffer.hpp>
 #include <ros/time.h>
@@ -22,65 +22,31 @@ class Entity
 {
 
 public:
-    Entity(const UUID& id = generateID(), const TYPE& type = "", const unsigned int& measurement_buffer_size = 5);
+    Entity(const UUID& id = generateID(), const TYPE& type = "");
     ~Entity();
 
+    // ID
     static UUID generateID();
-    const UUID& id() const { return id_; }
+    inline const UUID& id() const { return id_; }
 
-    const TYPE& type() const { return type_; }
-    void setType(const TYPE& type) { type_ = type; }
+    // Type
+    inline const TYPE& type() const { return type_; }
+    inline void setType(const TYPE& type) { type_ = type; }
 
-    void measurements(std::vector<MeasurementConstPtr>& measurements, double min_timestamp = 0) const;
-    void measurements(std::vector<MeasurementConstPtr>& measurements, unsigned int num) const;
-    MeasurementConstPtr lastMeasurement() const;
-    unsigned int measurementSeq() const { return measurements_seq_; }
-    MeasurementConstPtr bestMeasurement() const { return best_measurement_; }
-
-    void addMeasurement(MeasurementConstPtr measurement);
-
+    // Shape
     inline geo::ShapeConstPtr shape() const { return shape_; }
     void setShape(const geo::ShapeConstPtr& shape);
-
     inline int shapeRevision() const{ return shape_ ? shape_revision_ : 0; }
 
-    inline const ConvexHull2D& convexHull() const { return convex_hull_; }
+    // Pose
+    inline const geo::Pose3D& pose() const { return pose_; }
+    inline void setPose(const geo::Pose3D& pose) { pose_ = pose; }
 
-    void setConvexHull(const ConvexHull2D& convex_hull) { convex_hull_ = convex_hull; }
+    // Data loaded from model
+    inline const tue::config::DataConstPointer& data() const { return data_; }
+    inline void setData(const tue::config::DataConstPointer& data) { data_ = data; }
 
-    inline const geo::Pose3D& pose() const
-    {
-        if (!has_pose_)
-            log::warning() << "Someone's accessing an entity's pose while it doesnt have one." << std::endl;
-        return pose_;
-    }
-
-    inline void setPose(const geo::Pose3D& pose)
-    {
-        pose_ = pose;
-        if (shape_)
-            updateConvexHull();
-
-        has_pose_ = true;
-    }
-
-    inline bool has_pose() const { return has_pose_; }
-
-    inline const geo::Pose3D& velocity() const { return velocity_; }
-    inline void setVelocity(const geo::Pose3D& velocity) { velocity_ = velocity; }
-
-//    inline void setConfig(const tue::Configuration& config) { config_ = config; }
-//    inline tue::Configuration getConfig() const { return config_.limitScope(); }
-
-    inline const tue::config::DataConstPointer& data() const { return config_; }
-    inline void setData(const tue::config::DataConstPointer& data) { config_ = data; }
-
-    //! For debugging purposes
-    bool in_frustrum;
-    bool object_in_front;
-
-//    inline double creationTime() const { return creation_time_; }
-
+    // Relations (what does this do?)
     inline void setRelationTo(Idx child_idx, Idx r_idx) { relations_to_[child_idx] = r_idx; }
 
     inline void setRelationFrom(Idx parent_idx, Idx r_idx) { relations_from_[parent_idx] = r_idx; }
@@ -124,28 +90,6 @@ public:
         }
     }
 
-//    template<typename T>
-//    void setProperty(const PropertyKey<T>& key, const T& t)
-//    {
-//        if (!key.valid())
-//            return;
-
-//        std::map<Idx, Property>::iterator it = properties_.find(key.idx);
-//        if (it == properties_.end())
-//        {
-//            Property& p = properties_[key.idx];
-//            p.entry = key.entry;
-//            p.revision = 0;
-//            p.value.setValue(t);
-//        }
-//        else
-//        {
-//            Property& p = it->second;
-//            p.value.setValue(t);
-//            ++(p.revision);
-//        }
-//    }
-
     void setProperty(Idx idx, const Property& p)
     {
         std::map<Idx, Property>::iterator it = properties_.find(idx);
@@ -175,41 +119,31 @@ public:
 
 private:
 
+    // ID
     UUID id_;
 
+    // Revision
     unsigned long revision_;
 
+    // type
     TYPE type_;
 
-    boost::circular_buffer<MeasurementConstPtr> measurements_;
-    MeasurementConstPtr best_measurement_;
-    unsigned int measurements_seq_;
-
-    boost::circular_buffer<std::pair<ConvexHull2D, double> > convex_hull_buffer_;
-
+    // Shape
     geo::ShapeConstPtr shape_;
     int shape_revision_;
-    ConvexHull2D convex_hull_;
 
-    bool has_pose_;
+    // Absolute pose
     geo::Pose3D pose_;
-    geo::Pose3D velocity_;
-    geo::Vector3 average_displacement_vector_;
 
-    void updateEntityState(MeasurementConstPtr m);
-    void calculateVelocity();
+    // Data loaded from the model
+    tue::config::DataConstPointer data_;
 
-//    double creation_time_;
-
-    tue::config::DataConstPointer config_;
-
+    // Relations
     std::map<Idx, Idx> relations_from_;
     std::map<Idx, Idx> relations_to_;
 
     // Generic property map
     std::map<Idx, Property> properties_;
-
-    void updateConvexHull();
 
 };
 

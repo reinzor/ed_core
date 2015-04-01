@@ -30,17 +30,6 @@ void WorldModel::update(const UpdateRequest& req)
 
     std::map<UUID, EntityPtr> new_entities;
 
-    // Update associated measurements
-    for(std::map<UUID, std::vector<MeasurementConstPtr> >::const_iterator it = req.measurements.begin(); it != req.measurements.end(); ++it)
-    {
-        EntityPtr e = getOrAddEntity(it->first, new_entities);
-        const std::vector<MeasurementConstPtr>& measurements = it->second;
-        for(std::vector<MeasurementConstPtr>::const_iterator it2 = measurements.begin(); it2 != measurements.end(); ++it2)
-        {
-            e->addMeasurement(*it2);
-        }
-    }
-
     // Update poses
     for(std::map<UUID, geo::Pose3D>::const_iterator it = req.poses.begin(); it != req.poses.end(); ++it)
     {
@@ -53,13 +42,6 @@ void WorldModel::update(const UpdateRequest& req)
     {
         EntityPtr e = getOrAddEntity(it->first, new_entities);
         e->setShape(it->second);
-    }
-
-    // Update convex hulls
-    for(std::map<UUID, ed::ConvexHull2D>::const_iterator it = req.convex_hulls.begin(); it != req.convex_hulls.end(); ++it)
-    {
-        EntityPtr e = getOrAddEntity(it->first, new_entities);
-        e->setConvexHull(it->second);
     }
 
     // Update types

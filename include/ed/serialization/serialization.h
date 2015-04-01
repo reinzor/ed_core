@@ -16,17 +16,11 @@ class Writer;
 namespace ed
 {
 
-class ImageMask;
-
 // SERIALIZATION
-
-void serialize(const ImageMask& mask, tue::serialization::OutputArchive& m);
 
 void serialize(const WorldModel& wm, tue::config::Writer& w);
 
 // DESERIALIZATION
-
-void deserialize(tue::serialization::InputArchive& m, ImageMask& mask);
 
 void deserialize(tue::config::Reader& r, UpdateRequest& req);
 

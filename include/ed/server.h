@@ -2,20 +2,17 @@
 #define ED_SERVER_H_
 
 #include "ed/types.h"
-#include "ed/perception.h"
 
 #include <tue/profiling/profiler.h>
 #include <tue/profiling/ros/profile_publisher.h>
-
-#include <tf/transform_listener.h>
-
-#include <ros/publisher.h>
 
 #include <ed/models/model_loader.h>
 
 #include "ed/property_key_db.h"
 
 #include <queue>
+
+#include <tue/config/configuration.h>
 
 namespace ed
 {
@@ -33,17 +30,9 @@ public:
 
     void reset();
 
-    void update();
-
     void update(const ed::UpdateRequest& req);
 
     void update(const std::string& update_str, std::string& error);
-
-    void storeEntityMeasurements(const std::string& path) const;
-
-//    int size() const { return entities_.size(); }
-
-//    const std::map<UUID, EntityConstPtr>& entities() const { return entities_; }
 
     WorldModelConstPtr world_model() const { return world_model_; }
 
@@ -75,13 +64,6 @@ private:
     //! Model loading
     models::ModelLoader model_loader_;
 
-    //! Sensor data
-    std::map<std::string, SensorModulePtr> sensors_;
-    tf::TransformListener tf_listener_;
-
-    //! Perception
-    Perception perception_;
-
     //! Property Key DB
     PropertyKeyDB property_key_db_;
 
@@ -90,12 +72,7 @@ private:
     std::vector<PluginContainerPtr> plugin_containers_;
 
     //! Profiling
-    tue::ProfilePublisher pub_profile_;
     tue::Profiler profiler_;
-    ros::Publisher pub_stats_;
-
-    //! Merge the entities!
-    void mergeEntities(const WorldModelPtr& world_model, double not_updated_time, double overlap_fraction);
 
     std::string getFullLibraryPath(const std::string& lib);
 };
