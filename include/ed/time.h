@@ -26,7 +26,7 @@ public:
     bool operator<(const Time& rhs) const { return secs_ < rhs.secs_; }
     bool operator>(const Time& rhs) const { return secs_ > rhs.secs_; }
 
-    Time operator+(const Time& t) {  return Time(this->seconds() + (-t.seconds())); }
+    Time operator+(const Time& t) {  return Time(this->seconds() + (+t.seconds())); }
     Time operator-(const Time& t) {  return Time(this->seconds() + (-t.seconds())); }
 
     friend std::ostream& operator<< (std::ostream& out, const Time& d)

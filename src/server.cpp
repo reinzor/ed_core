@@ -116,7 +116,7 @@ PluginContainerPtr Server::loadPlugin(const std::string& plugin_name, const std:
     }
 
     // Create a plugin container
-    PluginContainerPtr container(new PluginContainer());
+    PluginContainerPtr container(new PluginContainer(world_model_));
 
     InitData init(property_key_db_, config);
 

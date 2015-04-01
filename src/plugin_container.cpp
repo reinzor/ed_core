@@ -10,9 +10,9 @@ namespace ed
 
 // --------------------------------------------------------------------------------
 
-PluginContainer::PluginContainer()
+PluginContainer::PluginContainer(WorldModelConstPtr world_model)
     : class_loader_(0), stop_(false), cycle_duration_(0.1), loop_frequency_(10), step_finished_(true), t_last_update_(0),
-      total_process_time_sec_(0)
+      total_process_time_sec_(0), world_current_(world_model)
 {
     timer_.start();
 }
@@ -157,7 +157,7 @@ void PluginContainer::step()
     }
 
     if (world_current_)
-    {        
+    {
         PluginInput data(*world_current_, world_deltas);
 
         UpdateRequestPtr update_request(new UpdateRequest);

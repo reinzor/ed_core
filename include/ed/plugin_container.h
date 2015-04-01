@@ -23,7 +23,7 @@ class PluginContainer
 
 public:
 
-    PluginContainer();
+    PluginContainer(WorldModelConstPtr world_model);
 
     virtual ~PluginContainer();
 
