@@ -4,7 +4,6 @@
 #include "ed/types.h"
 
 #include <tue/profiling/profiler.h>
-#include <tue/profiling/ros/profile_publisher.h>
 
 #include <ed/models/model_loader.h>
 
@@ -24,15 +23,11 @@ public:
     Server();
     virtual ~Server();    
 
-    void configure(tue::Configuration& config, bool reconfigure = false);
+    void configure(tue::Configuration& config);
 
     void initialize();
 
-    void reset();
-
     void update(const ed::UpdateRequest& req);
-
-    void update(const std::string& update_str, std::string& error);
 
     WorldModelConstPtr world_model() const { return world_model_; }
 
@@ -51,18 +46,10 @@ public:
 
 private:
 
-    // World model datastructure
+    //! World model datastructure
     WorldModelConstPtr world_model_;
 
-    //! World name
-    std::string world_name_;
-
     std::queue<UpdateRequest> update_requests_;
-
-    void initializeWorld();
-
-    //! Model loading
-    models::ModelLoader model_loader_;
 
     //! Property Key DB
     PropertyKeyDB property_key_db_;

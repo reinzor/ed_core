@@ -2,21 +2,16 @@
 
 #include <ed/world_model.h>
 
-// Query
-#include <ed/entity.h>
-#include <tue/config/yaml_emitter.h>
-
 // Reset
 #include <std_srvs/Empty.h>
 
 // Loop
+#include <ed/time.h>
 #include <ed/event_clock.h>
 
 // Plugin loading
 #include <ed/plugin.h>
 #include <tue/config/loaders/yaml.h>
-
-#include <ros/package.h>
 
 #include <signal.h>
 #include <stdio.h>
@@ -27,15 +22,6 @@
 #include <boost/thread.hpp>
 #include "ed/error_context.h"
 boost::thread::id main_thread_id;
-
-// ----------------------------------------------------------------------------------------------------
-
-double getCurrentTime()
-{
-    struct timeval tp;
-    gettimeofday(&tp, NULL);
-    return tp.tv_sec + (double) tp.tv_usec / 1000000.0;
-}
 
 // ----------------------------------------------------------------------------------------------------
 
@@ -181,21 +167,25 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // Check if a config file was provided. If so, load it.
-    tue::Configuration config;
-    if (argc >= 2)
+    // Check if a config file was provided. If not, exit.
+    if (argc < 2)
     {
-        std::string yaml_filename = argv[1];
-        config.loadFromYAMLFile(yaml_filename);
+        std::cout << "No configuration file specified" << std::endl;
+        return 1;
+    }
 
-        // Configure ED
-        server.configure(config);
+    tue::Configuration config;
 
-        if (config.hasError())
-        {
-            std::cout << std::endl << "Error during configuration:" << std::endl << std::endl << config.error() << std::endl;
-            return 1;
-        }
+    std::string yaml_filename = argv[1];
+    config.loadFromYAMLFile(yaml_filename);
+
+    // Configure ED
+    server.configure(config);
+
+    if (config.hasError())
+    {
+        std::cout << std::endl << "Error during configuration:" << std::endl << std::endl << config.error() << std::endl;
+        return 1;
     }
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -216,11 +206,11 @@ int main(int argc, char** argv)
     double rate = 1000.0;
     for (;;)
     {
-        double start_time = getCurrentTime();
+        ed::Time start_time = ed::Time::now();
 
         // Check if configuration has changed. If so, call reconfigure
         if (trigger_config.triggers() && config.sync())
-            server.configure(config, true);
+            server.configure(config);
 
         if (trigger_plugins.triggers())
             server.stepPlugins();
@@ -228,7 +218,7 @@ int main(int argc, char** argv)
         if (trigger_stats.triggers())
             server.publishStatistics();
 
-        double u_left = (1./rate - getCurrentTime() - start_time) * 1000000;
+        double u_left = (1./rate - ed::Time::now().seconds() - start_time.seconds()) * 1000000;
 
         if (u_left > 0)
             usleep(u_left);

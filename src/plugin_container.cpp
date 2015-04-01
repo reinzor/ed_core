@@ -1,9 +1,7 @@
 #include "ed/plugin_container.h"
 
 #include "ed/plugin.h"
-
-// TODO: get rid of ros rate
-#include <ros/rate.h>
+#include "ed/rate.h"
 
 #include <ed/error_context.h>
 
@@ -123,7 +121,7 @@ void PluginContainer::run()
 {
     total_timer_.start();
 
-    ros::Rate r(loop_frequency_);
+    Rate r(loop_frequency_);
     while(!stop_)
     {
         step();

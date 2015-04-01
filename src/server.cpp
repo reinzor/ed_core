@@ -2,10 +2,6 @@
 
 #include "ed/entity.h"
 
-#include <geolib/Box.h>
-
-#include <tue/profiling/scoped_timer.h>
-
 #include <tue/filesystem/path.h>
 
 #include "ed/plugin.h"
@@ -15,11 +11,6 @@
 #include <tue/config/loaders/yaml.h>
 
 #include <boost/make_shared.hpp>
-
-#include <std_msgs/String.h>
-
-#include "ed/serialization/serialization.h"
-#include <tue/config/writer.h>
 
 #include "ed/error_context.h"
 
@@ -56,7 +47,7 @@ std::string Server::getFullLibraryPath(const std::string& lib)
 
 // ----------------------------------------------------------------------------------------------------
 
-void Server::configure(tue::Configuration& config, bool reconfigure)
+void Server::configure(tue::Configuration& config)
 {
     ErrorContext errc("Server", "configure");
 
@@ -84,55 +75,12 @@ void Server::configure(tue::Configuration& config, bool reconfigure)
 
     // Initialize profiler
     profiler_.setName("ed");
-
-    if (config.value("world_name", world_name_, tue::OPTIONAL))
-        initializeWorld();
 }
 
 // ----------------------------------------------------------------------------------------------------
 
 void Server::initialize()
 {
-}
-
-// ----------------------------------------------------------------------------------------------------
-
-void Server::reset()
-{
-    ErrorContext errc("Server", "reset");
-
-    // Prepare default world-addition request
-    UpdateRequestPtr req_world(new UpdateRequest);
-    std::stringstream error;
-    if (!model_loader_.create(world_name_, world_name_, *req_world, error))
-    {
-        ROS_ERROR_STREAM("[ED] While resetting world: " << error.str());
-        return;
-    }
-
-    // Prepare deletion request
-    UpdateRequestPtr req_delete(new UpdateRequest);
-    for(WorldModel::const_iterator it = world_model_->begin(); it != world_model_->end(); ++it)
-        req_delete->removeEntity((*it)->id());
-
-    // Create world model copy
-    WorldModelPtr new_world_model = boost::make_shared<WorldModel>(*world_model_);
-
-    // Apply the requests (first deletion, than default world creation)
-    new_world_model->update(*req_delete);
-    new_world_model->update(*req_world);
-
-    // Swap to new world model
-    world_model_ = new_world_model;
-
-    // Notify plugins
-    for(std::vector<PluginContainerPtr>::iterator it = plugin_containers_.begin(); it != plugin_containers_.end(); ++it)
-    {
-        const PluginContainerPtr& c = *it;
-        c->addDelta(req_delete);
-        c->addDelta(req_world);
-        c->setWorld(new_world_model);
-    }
 }
 
 // ----------------------------------------------------------------------------------------------------
@@ -262,31 +210,6 @@ void Server::update(const ed::UpdateRequest& req)
 
 // ----------------------------------------------------------------------------------------------------
 
-void Server::initializeWorld()
-{
-    ed::UpdateRequestPtr req(new UpdateRequest);
-    std::stringstream error;
-    if (!model_loader_.create(world_name_, world_name_, *req, error))
-    {
-        ROS_ERROR_STREAM("[ED] Could not initialize world: " << error.str());
-        return;
-    }
-
-    // Create world model copy (shallow)
-    WorldModelPtr new_world_model = boost::make_shared<WorldModel>(*world_model_);
-
-    new_world_model->update(*req);
-
-    // Temporarily for Javier
-    for(std::vector<PluginContainerPtr>::iterator it = plugin_containers_.begin(); it != plugin_containers_.end(); ++it)
-    {
-        PluginContainerPtr c = *it;
-        c->addDelta(req);
-        c->setWorld(new_world_model);
-    }
-
-    world_model_ = new_world_model;
-}
 
 // ----------------------------------------------------------------------------------------------------
 

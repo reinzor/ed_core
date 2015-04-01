@@ -5,7 +5,6 @@
 #include "ed/relations/transform_cache.h"
 
 #include <tue/filesystem/path.h>
-#include <ros/package.h>
 
 #include "shape_loader.h"
 
@@ -37,7 +36,7 @@ ModelLoader::~ModelLoader()
 
 tue::filesystem::Path getModelPath(const std::string& type)
 {
-    return tue::filesystem::Path(ros::package::getPath("ed_object_models") + "/models/" + type);
+    return tue::filesystem::Path("NYI");
 }
 
 // ----------------------------------------------------------------------------------------------------

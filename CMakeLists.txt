@@ -15,7 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
 ###################################
 catkin_package(
     INCLUDE_DIRS include
-    LIBRARIES ed_core ed_io 
+    LIBRARIES ed_core 
     CATKIN_DEPENDS tue_config geolib2 class_loader
 )
 

@@ -1,7 +1,6 @@
 #include "shape_loader.h"
 
 #include <tue/filesystem/path.h>
-#include <ros/package.h>
 #include <fstream>
 
 #include <geolib/serialization.h>

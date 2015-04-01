@@ -22,6 +22,8 @@ public:
 
     ~ModelLoader();
 
+    void addModelPath(const std::string& path) { model_paths_.push_back(path); }
+
     bool create(const UUID& id, const std::string& type, UpdateRequest& req, std::stringstream& error);
 
     bool create(const tue::config::DataConstPointer& data, UpdateRequest& req, std::stringstream& error);
@@ -32,6 +34,9 @@ public:
     bool exists(const std::string& type) const;
 
 private:
+
+    // Model paths
+    std::vector<std::string> model_paths_;
 
     // Model name to model data
     std::map<std::string, tue::config::DataConstPointer> model_cache_;
