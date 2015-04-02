@@ -228,7 +228,7 @@ void Server::publishStatistics() const
         s << "    " << p->name() << ": " << cpu_perc << " % (" << p->loopFrequency() << " hz)" << std::endl;
     }
 
-    std::cout << s.str() << std::endl;
+    log::info(s.str());
 }
 
 }

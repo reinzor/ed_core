@@ -110,7 +110,6 @@ protected:
 
     void run();
 
-
     // buffer of delta's since last process call
     std::vector<UpdateRequestConstPtr> world_deltas_;
 

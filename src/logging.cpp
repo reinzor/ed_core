@@ -27,45 +27,21 @@ namespace log
 
 // ----------------------------------------------------------------------------------------------------
 
-std::ostream& info()
-{
-    std::cout << "\e[1;37m" << prefix() << " \e[0m";
-    return std::cout;
-}
-
-// ----------------------------------------------------------------------------------------------------
-
-void info(const char* str)
+void info(const std::string& str)
 {
     std::cout << "\e[1;37m" << prefix() << str << " \e[0m" << std::endl;
 }
 
 // ----------------------------------------------------------------------------------------------------
 
-std::ostream& warning()
-{
-    std::cout << "\e[1;33m" << prefix() << "Warning: \e[0m";
-    return std::cout;
-}
-
-// ----------------------------------------------------------------------------------------------------
-
-void warning(const char* str)
+void warning(const std::string& str)
 {
     std::cout << "\e[1;33m" << prefix() << "Warning: \e[0m" << str << std::endl;
 }
 
 // ----------------------------------------------------------------------------------------------------
 
-std::ostream& error()
-{
-    std::cout << "\e[1;31m" << prefix() << "Error: \e[0m";
-    return std::cout;
-}
-
-// ----------------------------------------------------------------------------------------------------
-
-void error(const char* str)
+void error(const std::string& str)
 {
     std::cout << "\e[1;31m" << prefix() << "Error: \e[0m" << str << std::endl;
 }
