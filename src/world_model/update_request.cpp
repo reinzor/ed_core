@@ -1,6 +1,6 @@
-#include "ed/update_request.h"
+#include "ed/world_model/update_request.h"
 
-#include "ed/entity.h"
+#include "ed/world_model/entity.h"
 
 namespace ed
 {

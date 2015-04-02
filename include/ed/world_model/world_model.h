@@ -2,7 +2,7 @@
 #define ED_WORLD_MODEL_H_
 
 #include "ed/types.h"
-#include "ed/time.h"
+#include "ed/time/time.h"
 
 #include <geolib/datatypes.h>
 
@@ -10,9 +10,6 @@
 
 namespace ed
 {
-
-class PropertyKeyDB;
-class PropertyKeyDBEntry;
 
 // ----------------------------------------------------------------------------------------------------
 
@@ -61,7 +58,7 @@ public:
 
     typedef EntityIterator const_iterator;
 
-    WorldModel(const PropertyKeyDB* prop_key_db = 0);
+    WorldModel();
 
     inline const_iterator begin() const { return const_iterator(entities_); }
 
@@ -100,8 +97,6 @@ public:
 
     const std::vector<unsigned long>& entity_revisions() const { return entity_revisions_; }
 
-    const PropertyKeyDBEntry* getPropertyInfo(const std::string& name) const;
-
 private:
 
     unsigned long revision_;
@@ -115,8 +110,6 @@ private:
     std::queue<Idx> entity_empty_spots_;
 
     std::vector<RelationConstPtr> relations_;
-
-    const PropertyKeyDB* property_info_db_;
 
     Idx addRelation(const RelationConstPtr& r);
 

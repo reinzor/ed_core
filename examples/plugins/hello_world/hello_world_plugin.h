@@ -1,7 +1,7 @@
 #ifndef ED_HELLO_WORLD_PLUGIN_H_
 #define ED_HELLO_WORLD_PLUGIN_H_
 
-#include <ed/plugin.h>
+#include <ed/plugin/plugin.h>
 
 class HelloWorld : public ed::Plugin
 {
@@ -12,7 +12,7 @@ public:
 
     virtual ~HelloWorld();
 
-    void initialize(ed::InitData& init);
+    void configure(tue::Configuration config);
 
     void process(const ed::WorldModel& world, ed::UpdateRequest& req);
 

@@ -1,8 +1,8 @@
 #include "ed/world_model/transform_crawler.h"
 
-#include "ed/world_model.h"
-#include "ed/entity.h"
-#include "ed/relation.h"
+#include "ed/world_model/world_model.h"
+#include "ed/world_model/entity.h"
+#include "ed/world_model/relation.h"
 
 namespace ed
 {

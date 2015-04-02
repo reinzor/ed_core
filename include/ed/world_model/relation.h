@@ -2,7 +2,7 @@
 #define ED_RELATION_H_
 
 #include "ed/types.h"
-#include "ed/time.h"
+#include "ed/time/time.h"
 
 #include <geolib/datatypes.h>
 

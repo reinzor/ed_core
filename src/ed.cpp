@@ -1,16 +1,17 @@
 #include "ed/server.h"
 
-#include <ed/world_model.h>
+#include <ed/world_model/world_model.h>
 
-// Reset
-#include <std_srvs/Empty.h>
+// Logging
+#include <ed/logging/logging.h>
+#include <ed/logging/error_context.h>
 
 // Loop
-#include <ed/time.h>
-#include <ed/event_clock.h>
+#include <ed/time/time.h>
+#include <ed/time/event_clock.h>
 
 // Plugin loading
-#include <ed/plugin.h>
+#include <ed/plugin/plugin.h>
 #include <tue/config/loaders/yaml.h>
 
 #include <signal.h>
@@ -20,7 +21,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <boost/thread.hpp>
-#include "ed/error_context.h"
 boost::thread::id main_thread_id;
 
 // ----------------------------------------------------------------------------------------------------
@@ -87,7 +87,7 @@ void signalHandler( int sig )
 
     std::cout << "    Error context: ";
 
-    ed::ErrorContextData* edata = ed::ErrorContext::data();
+    ed::log::ErrorContextData* edata = ed::log::ErrorContext::data();
     if (edata && !edata->stack.empty())
     {
         std::cout << std::endl << std::endl;
@@ -143,7 +143,7 @@ int main(int argc, char** argv)
     signal(SIGSEGV, signalHandler);
     signal(SIGABRT, signalHandler);
 
-    ed::ErrorContext errc("Start ED server", "init");
+    ed::log::ErrorContext errc("Start ED server", "init");
 
     // Create the ED server
     ed::Server server;

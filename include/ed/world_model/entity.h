@@ -2,17 +2,14 @@
 #define entity_h_
 
 #include "ed/types.h"
-#include "ed/uuid.h"
+#include "ed/world_model/uuid.h"
 
 #include <tue/config/data.h>
 #include <geolib/datatypes.h>
 
 #include <boost/circular_buffer.hpp>
 
-#include "ed/property.h"
-#include "ed/property_key.h"
-
-#include "ed/logging.h"
+#include "ed/logging/logging.h"
 
 namespace ed
 {
@@ -70,48 +67,6 @@ public:
 
     const std::map<Idx, Idx>& relationsTo() const { return relations_to_; }
 
-    template<typename T>
-    const T* property(const PropertyKey<T>& key) const
-    {
-        std::map<Idx, Property>::const_iterator it = properties_.find(key.idx);
-        if (it == properties_.end())
-            return 0;
-
-        const Property& p = it->second;
-
-        try
-        {
-            return &p.value.getValue<T>();
-        }
-        catch (std::bad_cast& e)
-        {
-            return 0;
-        }
-    }
-
-    void setProperty(Idx idx, const Property& p)
-    {
-        std::map<Idx, Property>::iterator it = properties_.find(idx);
-        if (it == properties_.end())
-        {
-            Property& p_new = properties_[idx];
-            p_new.entry = p.entry;
-            p_new.revision = p.revision;
-            p_new.value = p.value;
-        }
-        else
-        {
-            Property& p_new = it->second;
-            p_new.value = p.value;
-            p_new.revision = p.revision;
-        }
-
-        if (revision_ < p.revision)
-            revision_ = p.revision;
-    }
-
-    const std::map<Idx, Property>& properties() const { return properties_; }
-
     unsigned long revision() const { return revision_; }
 
     void setRevision(unsigned long revision) { revision_ = revision; }
@@ -140,9 +95,6 @@ private:
     // Relations
     std::map<Idx, Idx> relations_from_;
     std::map<Idx, Idx> relations_to_;
-
-    // Generic property map
-    std::map<Idx, Property> properties_;
 
 };
 

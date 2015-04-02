@@ -6,6 +6,9 @@
 namespace ed
 {
 
+namespace log
+{
+
 struct ErrorContextData
 {
     std::vector<std::pair<const char*, const char*> > stack;
@@ -25,6 +28,8 @@ public:
     static ErrorContextData* data();
 
 };
+
+}
 
 } // end namespace ed
 

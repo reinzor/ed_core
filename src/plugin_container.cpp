@@ -1,9 +1,9 @@
 #include "ed/plugin_container.h"
 
-#include "ed/plugin.h"
-#include "ed/rate.h"
+#include "ed/plugin/plugin.h"
+#include "ed/time/rate.h"
 
-#include <ed/error_context.h>
+#include <ed/logging/error_context.h>
 
 namespace ed
 {
@@ -12,7 +12,7 @@ namespace ed
 
 PluginContainer::PluginContainer(WorldModelConstPtr world_model)
     : class_loader_(0), stop_(false), cycle_duration_(0.1), loop_frequency_(10), step_finished_(true), t_last_update_(0),
-      total_process_time_sec_(0), world_current_(world_model)
+      world_current_(world_model), total_process_time_sec_(0)
 {
     timer_.start();
 }
@@ -32,7 +32,7 @@ PluginContainer::~PluginContainer()
 
 // --------------------------------------------------------------------------------
 
-PluginPtr PluginContainer::loadPlugin(const std::string plugin_name, const std::string& lib_filename, InitData& init)
+PluginPtr PluginContainer::loadPlugin(const std::string plugin_name, const std::string& lib_filename, tue::Configuration& config)
 {
     // Load the library
     delete class_loader_;
@@ -44,10 +44,10 @@ PluginPtr PluginContainer::loadPlugin(const std::string plugin_name, const std::
 
     if (classes.empty())
     {
-        init.config.addError("Could not find any plugins in '" + class_loader_->getLibraryPath() + "'.");
+        config.addError("Could not find any plugins in '" + class_loader_->getLibraryPath() + "'.");
     } else if (classes.size() > 1)
     {
-        init.config.addError("Multiple plugins registered in '" + class_loader_->getLibraryPath() + "'.");
+        config.addError("Multiple plugins registered in '" + class_loader_->getLibraryPath() + "'.");
     } else
     {
         plugin_ = class_loader_->createInstance<Plugin>(classes.front());
@@ -59,39 +59,35 @@ PluginPtr PluginContainer::loadPlugin(const std::string plugin_name, const std::
             plugin_->name_ = plugin_name;
 
             // Read optional frequency
-            init.config.value("frequency", freq, tue::OPTIONAL);
+            config.value("frequency", freq, tue::OPTIONAL);
 
-            if (init.config.readGroup("parameters"))
+            if (config.readGroup("parameters"))
             {
-                tue::Configuration scoped_config = init.config.limitScope();
-                InitData scoped_init(init.properties, scoped_config);
+                tue::Configuration scoped_config = config.limitScope();
 
-                plugin_->configure(scoped_config);  // This call will become obsolete (TODO)
-                plugin_->initialize(scoped_init);
+                plugin_->configure(scoped_config);
 
                 // Read optional frequency (inside parameters is obsolete)
-                if (init.config.value("frequency", freq, tue::OPTIONAL))
+                if (config.value("frequency", freq, tue::OPTIONAL))
                 {
                     std::cout << "[ED]: Warning while loading plugin '" << name_ << "': please specify parameter 'frequency' outside 'parameters'." << std::endl;
                 }
 
-                init.config.endGroup();
+                config.endGroup();
             }
             else
             {
                 // No parameter available
                 tue::Configuration scoped_config;
-                InitData scoped_init(init.properties, scoped_config);
 
-                plugin_->configure(scoped_config);  // This call will become obsolete (TODO)
-                plugin_->initialize(scoped_init);
+                plugin_->configure(scoped_config);
 
                 if (scoped_config.hasError())
-                    init.config.addError(scoped_config.error());
+                    config.addError(scoped_config.error());
             }
 
             // If there was an error during configuration, do not start plugin
-            if (init.config.hasError())
+            if (config.hasError())
                 return PluginPtr();
 
             // Initialize the plugin
@@ -141,25 +137,18 @@ void PluginContainer::step()
             return;
     }
 
-    std::vector<UpdateRequestConstPtr> world_deltas;
-
     // Check if there is a new world. If so replace the current one with the new one
     {
         boost::lock_guard<boost::mutex> lg(mutex_world_);
         if (world_new_)
         {
             world_current_ = world_new_;
-            world_deltas = world_deltas_;
-
-            world_deltas_.clear();
             world_new_.reset();
         }
     }
 
     if (world_current_)
     {
-        PluginInput data(*world_current_, world_deltas);
-
         UpdateRequestPtr update_request(new UpdateRequest);
 
         tue::Timer timer;
@@ -167,12 +156,9 @@ void PluginContainer::step()
 
         // Old
         {
-            ed::ErrorContext errc("Plugin:", name().c_str());
+            ed::log::ErrorContext errc("Plugin:", name().c_str());
 
             plugin_->process(*world_current_, *update_request);
-
-            // New
-            plugin_->process(data, *update_request);
         }
 
         timer.stop();

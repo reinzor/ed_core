@@ -1,5 +1,0 @@
-plugins:
-  - name: custom_properties
-    lib: libed_custom_properties_plugin.so
-    frequency: 2
-

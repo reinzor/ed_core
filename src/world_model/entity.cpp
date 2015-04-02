@@ -1,4 +1,4 @@
-#include "ed/entity.h"
+#include "ed/world_model/entity.h"
 
 #include <geolib/Shape.h>
 #include <geolib/Mesh.h>
@@ -10,7 +10,6 @@ namespace ed
 
 Entity::Entity(const UUID& id, const TYPE& type) :
     id_(id),
-    revision_(0),
     type_(type),
     shape_revision_(0),
     pose_(geo::Pose3D::identity())

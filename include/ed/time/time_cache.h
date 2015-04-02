@@ -1,7 +1,7 @@
 #ifndef ED_TIME_CACHE_H_
 #define ED_TIME_CACHE_H_
 
-#include "ed/time.h"
+#include "ed/time/time.h"
 #include <map>
 
 namespace ed

@@ -1,8 +1,8 @@
 #include "ed/models/model_loader.h"
 
-#include "ed/update_request.h"
-#include "ed/entity.h"
-#include "ed/relations/transform_cache.h"
+#include "ed/world_model/update_request.h"
+#include "ed/world_model/entity.h"
+#include "ed/world_model/transform_cache.h"
 
 #include <tue/filesystem/path.h>
 

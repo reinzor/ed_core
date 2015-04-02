@@ -1,4 +1,4 @@
-#include "ed/error_context.h"
+#include "ed/logging/error_context.h"
 
 #include <pthread.h>
 #include <iostream>
@@ -13,7 +13,7 @@ namespace
 
 void dataDestructor(void* data)
 {
-    ErrorContextData* edata = static_cast<ErrorContextData*>(data);
+    log::ErrorContextData* edata = static_cast<log::ErrorContextData*>(data);
     delete edata;
 }
 
@@ -33,6 +33,9 @@ struct KeyHolder
 }
 
 // ----------------------------------------------------------------------------------------------------
+
+namespace log
+{
 
 ErrorContext::ErrorContext(const char* msg, const char* value)
 {
@@ -65,6 +68,8 @@ void ErrorContext::change(const char* msg, const char* value)
 ErrorContextData* ErrorContext::data()
 {
     return static_cast<ErrorContextData*>(pthread_getspecific(key.key));
+}
+
 }
 
 }

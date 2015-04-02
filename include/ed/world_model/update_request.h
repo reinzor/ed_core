@@ -2,10 +2,7 @@
 #define ED_UPDATE_REQUEST_H_
 
 #include "ed/types.h"
-#include "ed/uuid.h"
-#include "ed/property.h"
-#include "ed/property_key.h"
-#include "ed/property_key_db.h"
+#include "ed/world_model/uuid.h"
 
 #include <tue/config/data_pointer.h>
 
@@ -67,29 +64,6 @@ public:
 
         flagUpdated(id);
     }
-
-    std::map<UUID, std::map<Idx, Property> > properties;
-
-    template<typename T>
-    void setProperty(const UUID& id, const PropertyKey<T>& key, const T& value)
-    {
-        if (!key.valid())
-            return;
-
-        Property& p = properties[id][key.idx];
-        p.entry = key.entry;
-        p.value = value;
-        flagUpdated(id);
-    }
-
-    void setProperty(const UUID& id, const PropertyKeyDBEntry* entry, const ed::Variant& v)
-    {
-        Property& p = properties[id][entry->idx];
-        p.entry = entry;
-        p.value = v;
-        flagUpdated(id);
-    }
-
 
     // REMOVED ENTITIES
 

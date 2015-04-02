@@ -1,20 +1,18 @@
-#include "ed/world_model.h"
+#include "ed/world_model/world_model.h"
 
-#include "ed/update_request.h"
-#include "ed/entity.h"
-#include "ed/relation.h"
+#include "ed/world_model/update_request.h"
+#include "ed/world_model/entity.h"
+#include "ed/world_model/relation.h"
 
 #include <tue/config/reader.h>
 #include <boost/make_shared.hpp>
-
-#include "ed/property_key_db.h"
 
 namespace ed
 {
 
 // --------------------------------------------------------------------------------
 
-WorldModel::WorldModel(const PropertyKeyDB* prop_key_db) : revision_(0), property_info_db_(prop_key_db)
+WorldModel::WorldModel() : revision_(0)
 {
 }
 
@@ -86,18 +84,6 @@ void WorldModel::update(const UpdateRequest& req)
             e->setType(type);
 
         e->setData(params);
-    }
-
-    for(std::map<UUID, std::map<Idx, Property> >::const_iterator it = req.properties.begin(); it != req.properties.end(); ++it)
-    {
-        EntityPtr e = getOrAddEntity(it->first, new_entities);
-        const std::map<Idx, Property>& props = it->second;
-
-        for(std::map<Idx, Property>::const_iterator it2 = props.begin(); it2 != props.end(); ++it2)
-        {
-            const Property& p = it2->second;
-            e->setProperty(it2->first, p);
-        }
     }
 
     // Remove entities
@@ -355,16 +341,6 @@ Idx WorldModel::addNewEntity(const EntityConstPtr& e)
     }
 
     return idx;
-}
-
-// --------------------------------------------------------------------------------
-
-const PropertyKeyDBEntry* WorldModel::getPropertyInfo(const std::string& name) const
-{
-    if (!property_info_db_)
-        return 0;
-
-    return property_info_db_->getPropertyKeyDBEntry(name);
 }
 
 }

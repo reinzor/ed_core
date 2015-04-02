@@ -1,4 +1,4 @@
-#include "ed/logging.h"
+#include "ed/logging/logging.h"
 
 #include <iostream>
 #include <pthread.h>

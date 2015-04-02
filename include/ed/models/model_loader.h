@@ -1,7 +1,7 @@
 #ifndef ED_MODEL_LOADER_H_
 #define ED_MODEL_LOADER_H_
 
-#include "ed/uuid.h"
+#include "ed/world_model/uuid.h"
 
 #include <map>
 #include <geolib/datatypes.h>

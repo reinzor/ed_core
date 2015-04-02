@@ -1,8 +1,8 @@
 #ifndef ED_TRANSFORM_CACHE_H_
 #define ED_TRANSFORM_CACHE_H_
 
-#include "ed/relation.h"
-#include "ed/time_cache.h"
+#include "ed/world_model/relation.h"
+#include "ed/time/time_cache.h"
 
 namespace ed
 {

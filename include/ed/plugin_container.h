@@ -1,8 +1,8 @@
-#ifndef WIRE_VOLUME_PLUGIN_CONTAINER_H_
-#define WIRE_VOLUME_PLUGIN_CONTAINER_H_
+#ifndef ED_PLUGIN_CONTAINER_H_
+#define ED_PLUGIN_CONTAINER_H_
 
 #include "ed/types.h"
-#include "ed/update_request.h"
+#include "ed/world_model/update_request.h"
 
 #include <tue/profiling/timer.h>
 #include <tue/config/configuration.h>
@@ -27,7 +27,7 @@ public:
 
     virtual ~PluginContainer();
 
-    PluginPtr loadPlugin(const std::string plugin_name, const std::string& lib_filename, InitData& init);
+    PluginPtr loadPlugin(const std::string plugin_name, const std::string& lib_filename, tue::Configuration &config);
 
     PluginPtr plugin() const { return plugin_; }
 
@@ -62,12 +62,6 @@ public:
     double totalRunningTime() const { return total_timer_.getElapsedTimeInSec(); }
 
     double totalProcessingTime() const { return total_process_time_sec_; }
-
-    void addDelta(const UpdateRequestConstPtr& delta)
-    {
-        boost::lock_guard<boost::mutex> lg(mutex_world_);
-        world_deltas_.push_back(delta);
-    }
 
 protected:
 
@@ -109,9 +103,6 @@ protected:
     void step();
 
     void run();
-
-    // buffer of delta's since last process call
-    std::vector<UpdateRequestConstPtr> world_deltas_;
 
 };
 

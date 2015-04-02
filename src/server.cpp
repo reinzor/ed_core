@@ -1,25 +1,25 @@
 #include "ed/server.h"
 
-#include "ed/entity.h"
+#include "ed/world_model/entity.h"
 
 #include <tue/filesystem/path.h>
 
-#include "ed/plugin.h"
+#include "ed/plugin/plugin.h"
 #include "ed/plugin_container.h"
-#include "ed/world_model.h"
+#include "ed/world_model/world_model.h"
 
 #include <tue/config/loaders/yaml.h>
 
 #include <boost/make_shared.hpp>
 
-#include "ed/error_context.h"
+#include "ed/logging/error_context.h"
 
 namespace ed
 {
 
 // ----------------------------------------------------------------------------------------------------
 
-Server::Server() : world_model_(new WorldModel(&property_key_db_))
+Server::Server() : world_model_(new WorldModel())
 {
 }
 
@@ -49,7 +49,7 @@ std::string Server::getFullLibraryPath(const std::string& lib)
 
 void Server::configure(tue::Configuration& config)
 {
-    ErrorContext errc("Server", "configure");
+    log::ErrorContext errc("Server", "configure");
 
     // Unload all previously loaded plugins
     plugin_containers_.clear();
@@ -87,7 +87,7 @@ void Server::initialize()
 
 PluginContainerPtr Server::loadPlugin(const std::string& plugin_name, const std::string& lib_file, tue::Configuration config)
 {    
-    ErrorContext errc("Server", "loadPlugin");
+    log::ErrorContext errc("Server", "loadPlugin");
 
     config.setErrorContext("While loading plugin '" + plugin_name + "': ");
 
@@ -118,10 +118,8 @@ PluginContainerPtr Server::loadPlugin(const std::string& plugin_name, const std:
     // Create a plugin container
     PluginContainerPtr container(new PluginContainer(world_model_));
 
-    InitData init(property_key_db_, config);
-
     // Load the plugin
-    if (!container->loadPlugin(plugin_name, full_lib_file, init))
+    if (!container->loadPlugin(plugin_name, full_lib_file, config))
         return PluginContainerPtr();
 
     // Add the plugin container
@@ -137,7 +135,7 @@ PluginContainerPtr Server::loadPlugin(const std::string& plugin_name, const std:
 
 void Server::stepPlugins()
 {   
-    ErrorContext errc("Server", "stepPlugins");
+    log::ErrorContext errc("Server", "stepPlugins");
 
     WorldModelPtr new_world_model;
 
@@ -157,13 +155,6 @@ void Server::stepPlugins()
 
             new_world_model->update(*c->updateRequest());
             plugins_with_requests.push_back(c);
-
-            // Temporarily for Javier
-            for(std::vector<PluginContainerPtr>::iterator it2 = plugin_containers_.begin(); it2 != plugin_containers_.end(); ++it2)
-            {
-                PluginContainerPtr c2 = *it2;
-                c2->addDelta(c->updateRequest());
-            }
         }
     }
 

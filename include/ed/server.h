@@ -7,8 +7,6 @@
 
 #include <ed/models/model_loader.h>
 
-#include "ed/property_key_db.h"
-
 #include <queue>
 
 #include <tue/config/configuration.h>
@@ -39,20 +37,12 @@ public:
 
     void publishStatistics() const;
 
-    const PropertyKeyDBEntry* getPropertyKeyDBEntry(const std::string& name) const
-    {
-        return property_key_db_.getPropertyKeyDBEntry(name);
-    }
-
 private:
 
     //! World model datastructure
     WorldModelConstPtr world_model_;
 
     std::queue<UpdateRequest> update_requests_;
-
-    //! Property Key DB
-    PropertyKeyDB property_key_db_;
 
     //! Plugins
     std::vector<std::string> plugin_paths_;

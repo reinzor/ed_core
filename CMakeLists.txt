@@ -39,13 +39,12 @@ file(GLOB_RECURSE HEADER_FILES include/*.h)
 
 # Declare a cpp library
 add_library(ed_core
-    src/entity.cpp
-    src/update_request.cpp
-    src/world_model.cpp
-    src/transform_cache.cpp
-
-    # World model querying
+    # World model
+    src/world_model/entity.cpp
+    src/world_model/world_model.cpp
+    src/world_model/update_request.cpp
     src/world_model/transform_crawler.cpp
+    src/world_model/transform_cache.cpp
 
     # Model loading
     src/models/model_loader.cpp
@@ -53,13 +52,8 @@ add_library(ed_core
     src/models/xml_shape_parser.cpp
 
     # Logging
-    src/logging.cpp
-
-    # Serialization
-    src/serialization/serialization.cpp
-
-    src/error_context.cpp
-    include/ed/error_context.h
+    src/logging/logging.cpp
+    src/logging/error_context.cpp
 
     ${HEADER_FILES}
 )
@@ -82,4 +76,3 @@ target_link_libraries(ed ed_core)
 # ------------------------------------------------------------------------------------------------
 
 add_library(ed_hello_world_plugin examples/plugins/hello_world/hello_world_plugin.cpp)
-add_library(ed_custom_properties_plugin examples/plugins/custom_properties/custom_properties_plugin.cpp)
